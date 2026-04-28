@@ -1,0 +1,16 @@
+# Paste this block into the `mcp_servers` section of ~/.hermes/config.yaml
+# Replace the python path with your actual Hermes venv path
+# (shown by: ls ~/.hermes/hermes-agent/venv/bin/python3)
+
+mcp_servers:
+  anythingllm-data:
+    enabled: true
+    command: /home/YOUR_USER/.hermes/hermes-agent/venv/bin/python3
+    args:
+      - /home/YOUR_USER/.hermes/mcp_servers/anythingllm-server.py
+    env: {}
+
+# Optional: lower the compression threshold if Hermes overflows context
+# (useful for large models like qwen3 or llama3 70B)
+# compression:
+#   threshold: 0.35
