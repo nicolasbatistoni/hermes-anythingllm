@@ -137,11 +137,14 @@ $RuleMarker = "AnythingLLM fallback"
 $SoulSnippet = @"
 
 **MANDATORY RULE — AnythingLLM fallback:**
-When the user asks about personal information (dates, preferences, opinions, past conversations, projects, facts about themselves) and you do NOT find the answer in your built-in memory (USER.md / MEMORY.md), you MUST search AnythingLLM BEFORE responding. Never reply "I don't have that information" without first calling:
-1. ``search_anythingllm_chats`` — to search past conversations
-2. ``search_anythingllm_documents`` — to search stored documents
+When the user asks about personal information (dates, preferences, opinions, past conversations, projects, facts about themselves) and you do NOT find the answer in your built-in memory (USER.md / MEMORY.md), call these tools EXACTLY ONCE each — then stop and answer:
+1. ``search_anythingllm_chats(query)`` — search past conversations
+2. ``search_anythingllm_documents(query)`` — search stored documents
 
-Only say you don't know after both searches return no relevant results.
+**STRICT LIMITS — do not break these:**
+- Call each search tool AT MOST ONCE per user question. Do NOT retry with different keywords.
+- After both calls return (even if empty), answer immediately with whatever you found.
+- If both return no results, say so in one sentence and move on. Do not keep searching.
 "@
 
 if ((Test-Path $Soul) -and ((Get-Content $Soul -Raw) -match $RuleMarker)) {
