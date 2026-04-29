@@ -83,14 +83,24 @@ def check_connection() -> bool:
         return False
 
 
+_PREFERRED_SLUGS = ("hermes", "memory", "hermes-memory")
+
+
 def get_default_workspace() -> str:
-    """Return the slug of the first available workspace."""
+    """Return the slug of the best available workspace.
+    Prefers workspaces named 'hermes', 'memory', or 'hermes-memory'.
+    Falls back to the first workspace in the list.
+    """
     try:
         r = requests.get(f"{ANYTHINGLLM_URL}/api/v1/workspaces",
                          headers=api_headers(), timeout=10)
         workspaces = r.json().get("workspaces", [])
-        if workspaces:
-            return workspaces[0]["slug"]
+        if not workspaces:
+            return ""
+        for ws in workspaces:
+            if ws.get("slug", "") in _PREFERRED_SLUGS:
+                return ws["slug"]
+        return workspaces[0]["slug"]
     except Exception:
         pass
     return ""

@@ -15,6 +15,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import requests
 from mcp.server.fastmcp import FastMCP
 
 
@@ -53,6 +54,20 @@ def find_db() -> str:
 DB_PATH = find_db()
 mcp = FastMCP("AnythingLLM")
 
+ANYTHINGLLM_URL = os.environ.get("ANYTHINGLLM_URL", "http://localhost:3001")
+ANYTHINGLLM_KEY = os.environ.get("ANYTHINGLLM_API_KEY", "")
+
+_PREFERRED_SLUGS = ("hermes", "memory", "hermes-memory")
+
+try:
+    from nltk.stem import SnowballStemmer as _SnowballStemmer
+    _stemmer = _SnowballStemmer("spanish")
+    def _stem(w: str) -> str:
+        return _stemmer.stem(w)
+except ImportError:
+    def _stem(w: str) -> str:  # type: ignore[misc]
+        return w[:5] if len(w) >= 6 else w
+
 STOPWORDS = {
     "me", "te", "se", "le", "la", "lo", "el", "un", "una", "los", "las",
     "de", "en", "que", "por", "con", "para", "del", "al", "es", "son",
@@ -72,7 +87,7 @@ def _build_search_terms(query: str) -> list[str]:
     seen: set[str] = set()
     terms: list[str] = []
     for w in raw:
-        key = w[:5] if len(w) >= 6 else w
+        key = _stem(w)
         if key not in seen:
             seen.add(key)
             terms.append(key)
@@ -225,19 +240,34 @@ def get_anythingllm_chats(workspace_id: str = None):
                       (workspace_id,))
         else:
             c.execute("SELECT id, name, slug, createdAt, lastUpdatedAt FROM workspaces LIMIT 10")
-        workspaces = []
-        for row in c.fetchall():
-            c2 = conn.cursor()
-            c2.execute("""SELECT prompt, response, createdAt FROM workspace_chats
-                          WHERE workspaceId=? ORDER BY createdAt DESC LIMIT 3""", (row[0],))
-            chats = [{"prompt": r[0], "response": _parse_response(r[1] or "")[:200], "date": r[2]}
-                     for r in c2.fetchall()]
-            workspaces.append({
-                "id": str(row[0]), "name": row[1] or "", "slug": row[2] or "",
-                "created_at": str(row[3]) if row[3] else "",
-                "last_updated": str(row[4]) if row[4] else "",
-                "recent_chats": chats,
-            })
+        ws_rows = c.fetchall()
+
+        chats_by_ws: dict = {}
+        if ws_rows:
+            ws_ids = [r[0] for r in ws_rows]
+            placeholders = ",".join("?" * len(ws_ids))
+            c.execute(f"""
+                SELECT workspaceId, prompt, response, createdAt
+                FROM (
+                    SELECT workspaceId, prompt, response, createdAt,
+                           ROW_NUMBER() OVER (PARTITION BY workspaceId ORDER BY createdAt DESC) AS rn
+                    FROM workspace_chats WHERE workspaceId IN ({placeholders})
+                ) WHERE rn <= 3
+            """, ws_ids)
+            for r in c.fetchall():
+                chats_by_ws.setdefault(r[0], []).append({
+                    "prompt": r[1],
+                    "response": _parse_response(r[2] or "")[:200],
+                    "date": r[3],
+                })
+
+        workspaces = [{
+            "id": str(r[0]), "name": r[1] or "", "slug": r[2] or "",
+            "created_at": str(r[3]) if r[3] else "",
+            "last_updated": str(r[4]) if r[4] else "",
+            "recent_chats": chats_by_ws.get(r[0], []),
+        } for r in ws_rows]
+
         conn.close()
         return {"success": True, "count": len(workspaces), "workspaces": workspaces}
     except Exception as e:
@@ -356,6 +386,65 @@ def get_workspace_documents(workspace_id: str = None):
             })
         conn.close()
         return {"success": True, "count": len(docs), "documents": docs}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _get_workspace_slug() -> str:
+    """Auto-detect best workspace slug: prefer 'hermes'/'memory', fall back to first."""
+    try:
+        r = requests.get(
+            f"{ANYTHINGLLM_URL}/api/v1/workspaces",
+            headers={"Authorization": f"Bearer {ANYTHINGLLM_KEY}"},
+            timeout=5,
+        )
+        workspaces = r.json().get("workspaces", [])
+        if not workspaces:
+            return ""
+        for ws in workspaces:
+            if ws.get("slug", "") in _PREFERRED_SLUGS:
+                return ws["slug"]
+        return workspaces[0]["slug"]
+    except Exception:
+        return ""
+
+
+@mcp.tool()
+def query_anythingllm_workspace(question: str, workspace_slug: str = ""):
+    """
+    Semantic vector search against AnythingLLM's RAG store.
+    Use this BEFORE keyword searches — it finds relevant content by meaning,
+    not just word matching. Requires ANYTHINGLLM_API_KEY in ~/.hermes/.env.
+    Parameters:
+        question: the question to search for semantically
+        workspace_slug: workspace to query (auto-detected if blank)
+    """
+    if not ANYTHINGLLM_KEY:
+        return {"success": False,
+                "error": "ANYTHINGLLM_API_KEY not set. Add it to ~/.hermes/.env"}
+    slug = workspace_slug or _get_workspace_slug()
+    if not slug:
+        return {"success": False, "error": "No workspace found. Create one in AnythingLLM first."}
+    try:
+        r = requests.post(
+            f"{ANYTHINGLLM_URL}/api/v1/workspace/{slug}/chat",
+            headers={"Authorization": f"Bearer {ANYTHINGLLM_KEY}",
+                     "Content-Type": "application/json"},
+            json={"message": question, "mode": "query"},
+            timeout=60,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return {
+            "success": True,
+            "workspace": slug,
+            "question": question,
+            "response": data.get("textResponse", ""),
+            "sources": [
+                {"title": s.get("title", ""), "chunk": s.get("text", "")[:300]}
+                for s in data.get("sources", [])
+            ],
+        }
     except Exception as e:
         return {"success": False, "error": str(e)}
 

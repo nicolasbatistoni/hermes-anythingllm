@@ -24,6 +24,13 @@ ok()   { echo -e "${GREEN}✓${NC} $*"; }
 warn() { echo -e "${YELLOW}⚠${NC} $*"; }
 fail() { echo -e "${RED}✗${NC} $*"; exit 1; }
 
+# ── Portable sed -i (GNU = Linux, BSD = macOS) ────────────────────────────────
+if sed --version >/dev/null 2>&1; then
+    _sed_i() { sed -i "$@"; }
+else
+    _sed_i() { sed -i '' "$@"; }
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Locate Hermes ─────────────────────────────────────────────────────────────
@@ -73,14 +80,14 @@ mkdir -p "$HERMES_HOME/mcp_servers" "$HERMES_HOME/scripts" "$HERMES_HOME/logs"
 # ── Copy MCP server ───────────────────────────────────────────────────────────
 MCP_DEST="$HERMES_HOME/mcp_servers/anythingllm-server.py"
 cp "$SCRIPT_DIR/mcp/anythingllm-server.py" "$MCP_DEST"
-sed -i "1s|.*|#!${VENV_PYTHON}|" "$MCP_DEST"
+_sed_i "1s|.*|#!${VENV_PYTHON}|" "$MCP_DEST"
 chmod +x "$MCP_DEST"
 ok "MCP server installed → $MCP_DEST"
 
 # ── Copy sync script ──────────────────────────────────────────────────────────
 SYNC_DEST="$HERMES_HOME/scripts/sync_sessions_to_anythingllm.py"
 cp "$SCRIPT_DIR/scripts/sync_sessions_to_anythingllm.py" "$SYNC_DEST"
-sed -i "1s|.*|#!${VENV_PYTHON}|" "$SYNC_DEST"
+_sed_i "1s|.*|#!${VENV_PYTHON}|" "$SYNC_DEST"
 chmod +x "$SYNC_DEST"
 ok "Sync script installed → $SYNC_DEST"
 
@@ -96,9 +103,9 @@ else
     if grep -q "anythingllm-data" "$CONFIG"; then
         warn "anythingllm-data already present in config.yaml — updating command path."
         # Update just the command line
-        sed -i "/anythingllm-data/,/env:/ s|command:.*|command: ${VENV_PYTHON}|" "$CONFIG"
+        _sed_i "/anythingllm-data/,/env:/ s|command:.*|command: ${VENV_PYTHON}|" "$CONFIG"
         # Ensure enabled: true
-        sed -i "/anythingllm-data/{n; s/enabled:.*/enabled: true/}" "$CONFIG"
+        _sed_i "/anythingllm-data/{n; s/enabled:.*/enabled: true/}" "$CONFIG"
     else
         # Append under mcp_servers section if it exists, else append at end
         if grep -q "^mcp_servers:" "$CONFIG"; then
@@ -143,14 +150,15 @@ else
     SOUL_SNIPPET=$(cat <<'SOULEOF'
 
 **MANDATORY RULE — AnythingLLM fallback:**
-When the user asks about personal information (dates, preferences, opinions, past conversations, projects, facts about themselves) and you do NOT find the answer in your built-in memory (USER.md / MEMORY.md), call these tools EXACTLY ONCE each — then stop and answer:
-1. `search_anythingllm_chats(query)` — search past conversations
-2. `search_anythingllm_documents(query)` — search stored documents
+When the user asks about personal information (dates, preferences, opinions, past conversations, projects, facts about themselves) and you do NOT find the answer in your built-in memory (USER.md / MEMORY.md), call these tools IN ORDER — then stop and answer:
+1. `query_anythingllm_workspace(question)` — semantic vector search (real RAG, finds by meaning)
+2. `search_anythingllm_chats(query)` — keyword search in past conversations
+3. `search_anythingllm_documents(query)` — keyword search in stored documents
 
 **STRICT LIMITS — do not break these:**
-- Call each search tool AT MOST ONCE per user question. Do NOT retry with different keywords.
-- After both calls return (even if empty), answer immediately with whatever you found.
-- If both return no results, say so in one sentence and move on. Do not keep searching.
+- Call each tool AT MOST ONCE per user question. Do NOT retry with different keywords.
+- After all calls return (even if empty), answer immediately with whatever you found.
+- If all return no results, say so in one sentence and move on. Do not keep searching.
 SOULEOF
 )
     echo "$SOUL_SNIPPET" >> "$SOUL"
@@ -162,6 +170,8 @@ ENV_FILE="$HERMES_HOME/.env"
 if [[ -f "$ENV_FILE" ]] && grep -q "ANYTHINGLLM_API_KEY" "$ENV_FILE"; then
     warn ".env already has ANYTHINGLLM_API_KEY — not overwriting."
 else
+    # Ensure the file ends with a newline before appending
+    [[ -s "$ENV_FILE" && -z "$(tail -c 1 "$ENV_FILE")" ]] || echo "" >> "$ENV_FILE"
     cat >> "$ENV_FILE" <<ENVEOF
 
 # AnythingLLM integration
