@@ -324,18 +324,26 @@ verifica contra el hard de 35 KB).
 Todo proyecto **publicable/vendible** mantiene su material de portfolio **pensado para la venta** en el
 repo central **`nicolasbatistoni/portfolio`**, bajo una carpeta con el **nombre del repo del proyecto**:
 `nicolasbatistoni/portfolio/<nombre-repo-del-proyecto>/`. Es el material que se le muestra a un cliente
-potencial (no doc técnica): qué problema resuelve, para quién, el resultado y cómo se ve corriendo.
+potencial (no doc técnica): qué problema resuelve, para quién y con qué resultado.
+
+**Sin detalle de implementación (regla dura):** el portfolio **nunca nombra tecnologías, frameworks,
+librerías, lenguajes, arquitectura, infraestructura ni decisiones técnicas**. Se habla en lenguaje de
+**cliente** (problema → solución → resultado), no del "cómo está hecho". Cualquier entrada que mencione
+el "cómo" técnico no cumple y se corrige.
 
 **Estructura única (igual para todos los proyectos):**
 ```
 nicolasbatistoni/portfolio/<nombre-repo-del-proyecto>/
   README.md      # caso de estudio de venta: Problema → Solución → Resultado/impacto →
-                 #   Stack (derivado de STACKS.md) → Capturas → CTA (demo / contacto)
+                 #   Capturas → CTA (demo / contacto). SIN stack ni detalle técnico.
   img/           # capturas REALES del producto corriendo (1 hero + galería), no mockups
-  meta.yml       # título, tagline (1 línea), stack, links (demo/repo/video), estado, fecha
+  meta.yml       # título, tagline (1 línea), categoría, links (demo/video), estado, fecha
 ```
-El proyecto puede tener además su `docs/portfolio/` in-repo como fuente viva; el repo central es el
-**agregado comercial curado** y se mantiene en sync con esa fuente.
+
+**El sitio `otara-labs` refleja exactamente este repo:** la sección portfolio de la web muestra
+**exactamente** el contenido del repo `nicolasbatistoni/portfolio` (mismo texto y mismas capturas, por
+proyecto). El repo es la **fuente de verdad** del material de venta; la web no agrega copy ni detalle de
+implementación que no esté ahí. Si cambia uno, se actualiza el otro en el mismo cambio.
 
 **Actualización en CADA cambio/iteración (regla dura):** el material de portfolio se actualiza **en el
 mismo merge** que avanza lo que se ve o se promete. Una feature de cara al usuario **sin** su entrada/
