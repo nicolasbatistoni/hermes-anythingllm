@@ -1,0 +1,35 @@
+name: Release Please
+
+# CD completo, sin gate humano (AGENTS.md §1): en cada push a main, release-please
+# mantiene un "release PR" (bump SemVer + CHANGELOG) desde los Conventional Commits.
+# El release PR se AUTO-MERGEA y el tag vX.Y.Z + GitHub Release se cortan en la MISMA
+# corrida (el merge con GITHUB_TOKEN no re-dispara el workflow, por eso la 2ª invocación).
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Auto-merge del release PR
+        if: ${{ steps.rp.outputs.prs_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge --squash --delete-branch "${{ fromJSON(steps.rp.outputs.pr).number }}" -R "${{ github.repository }}"
+          sleep 8
+      - uses: googleapis/release-please-action@v4
+        if: ${{ steps.rp.outputs.prs_created == 'true' }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

@@ -88,9 +88,12 @@ El agente aprueba y mergea (squash + delete branch) una vez que pasan los gates 
 gatea cada merge — la forma de la PR + verificación + diff limpio son el gate. El usuario gatea solo si
 lo pide o si el cambio es high-risk (arquitectónico, schema/API-breaking, refactor grande). **El merge lo
 hace siempre el agente, nunca lo deja para el usuario:** una PR abierta con CI en verde esperando solo
-que un humano apriete "merge" es trabajo sin terminar, no un entregable. La **única** excepción es la PR
-que **corta una versión/release** (la que crea el tag/release): cortar versión es una decisión humana
-deliberada — esa PR queda abierta esperando al usuario y se avisa; el resto las mergea el agente.
+que un humano apriete "merge" es trabajo sin terminar, no un entregable. **Esto incluye las PRs de
+release: versionar y publicar es 100% automático** — el pipeline abre el release PR, lo **auto-mergea**
+y corta el **tag + GitHub Release** en la misma corrida, sin gate humano (el merge con `GITHUB_TOKEN` no
+re-dispara el workflow, así que el release se corta en una 2ª invocación del mismo job). No hay paso
+manual para subir código, cortar versión ni publicar. Aplica a **todos los repos** (`dev/` y portfolio):
+cada uno lleva su pipeline de release automático (§1.bis, §6).
 
 **Flujo production-ready (esencial):** `main` = "próxima versión publicable", no "lo último que codeé" →
 siempre compila/construye, pasa tests y arranca limpio. **PR chico** (revisable en 10–20 min,
