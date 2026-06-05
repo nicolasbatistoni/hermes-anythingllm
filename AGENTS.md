@@ -123,11 +123,12 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   publicar el paquete, OIDC) y **producción protegida** (entorno con required reviewers / OIDC /
   secrets por entorno). Los **tags/releases productivos los crea el pipeline**, no la máquina del dev
   (§1); si el push de un tag debe disparar otro pipeline, encadenarlo explícitamente.
-- **Permiso de plataforma para abrir PRs (bootstrap del repo, §7).** Cuando el `permissions:` del job
-  no alcanza por sí solo, hay que habilitar el toggle del repo. En GitHub: *Settings → Actions →
-  General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"*; sin él,
-  los workflows que abren PRs (release automation tipo release-please) fallan con *"not permitted to
-  create or approve pull requests"* aunque el job ya declare `pull-requests: write`.
+- **CI/CD homogéneo, definido una sola vez (DRY).** El set de workflows y el pipeline de release+build son
+  **reusables centrales** en `nicolasbatistoni/.github` (su README es la fuente). Set por repo, un archivo
+  por responsabilidad (SRP): `ci.yml` (validar PRs, stack-specific), `pr-title.yml` + `release.yml`
+  (reusables), `deploy.yml` solo si hay CD. **Nombres fijos**, **un solo** mecanismo de release (automático;
+  nunca tag a mano + workflow por tag). Bootstrap por repo: habilitar el toggle *Allow GitHub Actions to
+  create and approve pull requests* (si no, los workflows que abren PRs fallan).
 - **Objetivo de tiempos de CI:** feedback de PR ~5–10 min, pipeline de `main` ~10–20 min; si se pasa,
   paralelizar o partir.
 
