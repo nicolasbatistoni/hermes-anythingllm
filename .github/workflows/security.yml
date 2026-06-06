@@ -1,0 +1,9 @@
+name: Security
+# Scan Trivy completo (vuln + secret + misconfig). Reusable central (nicolasbatistoni/.github).
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  trivy:
+    uses: nicolasbatistoni/.github/.github/workflows/security.yml@main
