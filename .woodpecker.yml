@@ -1,0 +1,20 @@
+# Adaptador Woodpecker fino. La lógica vive en ci-toolkit (`cicd <stage>`). Pinear a un tag vX.Y.Z.
+variables:
+  - &toolkit ghcr.io/nicolasbatistoni/ci-toolkit:latest
+
+when:
+  - event: [pull_request, push]
+
+steps:
+  security:
+    image: *toolkit
+    commands: [cicd security]
+
+  release:
+    image: *toolkit
+    commands: [cicd release]
+    when:
+      - event: push
+        branch: main
+    environment:
+      GH_TOKEN: { from_secret: gh_token }

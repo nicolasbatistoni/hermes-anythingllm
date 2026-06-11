@@ -1,0 +1,11 @@
+# cicd.yml — parametrización del CI/CD para el motor portable (nicolasbatistoni/ci-toolkit).
+# La lógica vive en el toolkit; este repo declara solo lo propio. Schema: README de ci-toolkit.
+name: hermes-anythingllm
+workdir: .
+
+security:
+  fs_scan_ref: .
+  severity: CRITICAL,HIGH
+
+release:
+  artifact: none

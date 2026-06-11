@@ -1,8 +1,0 @@
-name: PR title
-# Conventional Commits en el título del PR (lo necesita el auto-versionado). Reusable central.
-on:
-  pull_request:
-    types: [opened, edited, synchronize, reopened]
-jobs:
-  title:
-    uses: nicolasbatistoni/.github/.github/workflows/pr-title.yml@main
