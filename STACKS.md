@@ -20,15 +20,20 @@
 | **Sitio web dinámico** (SSR/SSG con datos, auth, panel, e-commerce) | **TypeScript** | **Next.js** (App Router) + React + Tailwind | `casa-raiz` |
 | **Web app / SaaS con backend propio** (API + SPA, multi-tenant, realtime) | **JavaScript/TypeScript (Node)** | **Node** + Express + Mongoose + MongoDB + React (Vite) | `nicoq/doble-yema` |
 | **Microservicio / worker / API chica** (envío de mail, impresión, jobs) | **Node** | **Node** + Express (HTTP) o proceso + libs puntuales | `otara-labs/apps/mail-api`, `fran-colarusso/riviera-worker` |
-| **Videojuego / motor 3D propio** (control total, perf máxima) | **C++** | **C++20** + **Vulkan 1.3** (motor propio) | `spacesim-c` (ccosmos) |
-| **Videojuego con motor (prototipo rápido / multiplataforma)** | GDScript / C++ | **Godot 4.x** *(prototipo)* · **Unreal Engine 5.x** *(AAA/Nanite-Lumen)* | `spacesim-godot`, `spacesim-ue5` |
+| **Videojuego / motor 3D propio** (control total, perf máxima) | **C++** | **C++20** + **Vulkan 1.3** (motor propio) | `spacesim-c` |
+| **Videojuego con motor (prototipo rápido / multiplataforma)** | GDScript / C++ | **Godot 4.x** *(prototipo 2D/3D)* · **Unreal Engine 5.x** *(AAA/Nanite-Lumen)* | `spacesim-godot` (4.6), `gangsters`/`spacesim-pixelart-godot`, `procedural-space-sim` (UE 5.7) |
 | **Prototipo web 3D / vertical slice sin build** | **JavaScript** | **Three.js** (vanilla HTML/CSS/JS, sin build step) | `spacesim-js` |
+| **Port experimental / lenguaje de sistemas emergente** (MVP CLI, determinismo, sin GC) | **Odin** | **Odin** (compilador + `odin test`); secundario, no default | `spacesim-odin` |
+| **Editor / cockpit local sobre un pipeline IA/ML** (UI de autoría/curación/orquestación; viewport 3D) | **Python + TypeScript** | **FastAPI** (in-process sobre el pipeline) + **React/Vite/Tailwind** (+ react-three-fiber); opcional pywebview desktop | `ai-asset-pipeline/editor` |
+| **Audio / SFX procedural** (síntesis físicamente-fundada, DSP — sin pesos, license-clean) | **Python** | **Python 3.12+** + numpy (síntesis modal) + soundfile (WAV 24-bit/OGG) + pyloudnorm (LUFS ITU-R BS.1770) | `ai-asset-pipeline` (dominio audio) |
+| **App mobile** (híbrida/PWA o nativa) | **TS/JS** o nativo | **Sin default consolidado vigente** — al necesitarlo, elegir y registrar (p. ej. Capacitor/Expo/PWA); `tempi-ionic` (Ionic v1/Cordova) es **legacy**, no default | `tempi-ionic` (legacy) |
+| **App desktop** (ventana nativa sobre web) | **TS/JS** | **Sin default consolidado vigente** — al necesitarlo, elegir y registrar (Tauri / Electron actual); `tuitpic`, `chequer-electron` (Electron 1.3) son **legacy** | `tuitpic`, `chequer-electron` (legacy) |
 | **IA / ML — pipeline, RAG, servicio de inferencia** (prioriza iteración) | **Python** | **Python 3.12+** + FastAPI + libs ML (torch, embeddings, vector DB) | `agents` (Brain), `claude-rag-memory` |
 | **IA / robótica con presión de latencia** (tiempo real, hot path duro) | **C++** | **C++20** (Python solo el orquestador/glue) | — (criterio, ver §IA) |
 | **Robótica / edge / visión en hardware chico** (RPi, microcontrolador) | **Python** o **C/C++** | Python (visión/control alto nivel) · C/C++ firmware | `rpi-self-awareness`, `arduplane-gy-87` |
 | **CLI / herramienta / script / automatización** | **Python** | Python 3.12+ + Typer (CLI) · Node si el ecosistema es JS | `agents` (CLI Typer) |
 | **Integración / MCP server / glue de IA** | **Python** | Python + `mcp` SDK | `hermes-anythingllm`, `claude-rag-memory` |
-| **Servicios self-hosted / homelab** (media, descargas, infra) | — | **Docker Compose** (imágenes pinneadas) → GHCR + keel en RPi | `plex-rpi` |
+| **Servicios self-hosted / homelab** (infra, edge en RPi) | — | **Docker Compose** / **k3s** (imágenes pinneadas) → GHCR + keel en RPi | `nicoq` (k3s RPi), `rpi-self-awareness` |
 
 **Regla de decisión rápida:**
 1. ¿Lo ve un usuario en el navegador y **no** tiene backend propio? → **Astro** (estático).
@@ -84,19 +89,32 @@ Separar `apps/api` (backend) y `apps/web` (frontend) en un monorepo.
   - **Tests:** **Vitest `^2`** + **Supertest** (rutas/handlers) + `mongodb-memory-server`.
 - **Frontend (`apps/web`):** **React `^18`** + **react-router-dom `^6`** + **Vite `^5`** +
   **Tailwind `^3`**.
+  - **Componentes:** **shadcn/ui** (Radix + Tailwind, copiado al repo vía `components.json`) como sistema
+    de componentes accesible por default; **TanStack Query** para estado de servidor. Package manager:
+    **npm** por default, **Bun** aceptado cuando el repo ya lo usa (`bun.lockb`) — uno solo por repo.
   - **Tests:** Vitest + Testing Library + Playwright + `@axe-core/playwright` + `jest-axe` + LHCI.
-- **Microservicios/workers** (`otara-labs/apps/mail-api`, `fran-colarusso/riviera-worker`): Node
+- **Microservicios/workers** (`otara-labs/apps/mail-api`, `fran-colarusso/riviera/worker`): Node
   minimal — Express solo si expone HTTP; libs puntuales (`axios`, `cron`, `pg`, `escpos`) según tarea.
 
 > **Express + Mongoose + MongoDB + React** es el default de web app. PostgreSQL (`pg`) solo cuando el
 > dominio es fuertemente relacional/transaccional (caso worker de impresión sobre Postgres existente).
+
+> **Starters generados por IA (p. ej. Lovable):** son un punto de partida (`link-board`,
+> `pentest-canvas-hub`, `otara-labs-offensive-security-expertise`), no un entregable. Antes de
+> considerarlos hechos hay que **subirlos a las disciplinas** (tests TDD+e2e, a11y como gate, CI/CD
+> portable) — el código generado no exime de `AGENTS.md §3`.
+
+> **Backends heredados / de cliente / de práctica** (no greenfield default): **Java + Spring Boot +
+> Maven** (`msf`) y **Ruby on Rails** (`fran-colarusso/riviera`) aparecen por herencia o contexto de
+> cliente. No se eligen para algo nuevo salvo razón registrada en el PR; se mantienen con la misma
+> disciplina de proceso que el resto.
 
 ## 4. Videojuego / motor 3D — C++20 + Vulkan (motor propio)
 
 **Cuándo:** se busca **control total y performance máxima**, motor propio a escala real. Es el default
 para los juegos serios del repo.
 
-**Stack de referencia (`spacesim-c` / ccosmos):**
+**Stack de referencia (`spacesim-c`):**
 - **C++20** (CMake `>=3.24` + **CMake Presets**), **MSVC `/utf-8`** o Clang/GCC con charset UTF-8.
 - **Vulkan 1.3** (SDK aparte, provee loader + glslang) sobre un **motor propio**.
 - **Dependencias vía vcpkg manifest (`vcpkg.json`):** `glfw3` (ventana/input), `glm` (matemática),
@@ -105,14 +123,19 @@ para los juegos serios del repo.
 - **Tests:** **Catch2** (unit + integración) vía CTest. **Shaders:** GLSL → SPIR-V como gate de build.
 
 **Alternativas con motor (prototipo / equipo chico / multiplataforma):**
-- **Godot `4.x`** (GDScript) — iteración rápida, export a Steam (`spacesim-godot`, Godot 4.6).
-- **Unreal Engine `5.x`** (C++ + Blueprints, Nanite/Lumen) — AAA / geometría masiva (`spacesim-ue5`,
-  UE 5.7).
+- **Godot `4.x`** (GDScript) — iteración rápida, export a Steam. 3D (`spacesim-godot`, Godot 4.6),
+  2D/pixelart en modo GL Compatibility (`spacesim-pixelart-godot`) y juego con assets Blender
+  (`gangsters`, Godot 4.7).
+- **Unreal Engine `5.x`** (C++ + Blueprints, Nanite/Lumen) — AAA / geometría masiva
+  (`procedural-space-sim`, UE 5.7).
 - **Three.js** (vanilla JS, sin build) — prototipo web / vertical slice jugable en navegador
   (`spacesim-js`).
+- **Odin** (compilado, sin GC) — port experimental / MVP de consola determinístico (`spacesim-odin`):
+  el valor está en el modelo procedural verificable, no en el renderer. Secundario, no default.
 
 > Regla: **motor propio C++/Vulkan** cuando el proyecto **es** el motor y la perf es el norte; **motor
-> existente** (Godot/UE5) cuando lo que importa es el juego y la velocidad de iteración.
+> existente** (Godot/UE5) cuando lo que importa es el juego y la velocidad de iteración; **Three.js/Odin**
+> para prototipos/ports experimentales del mismo modelo en otro stack.
 
 ## 5. IA / ML / robótica — Python (default) o C++ (si la velocidad manda)
 
@@ -143,8 +166,32 @@ para los juegos serios del repo.
 - **Web** → **Vercel** (auto-deploy desde `main` + preview por PR).
 - **Servicios internos / homelab (RPi)** → imágenes **GHCR** versionadas (`:vX.Y.Z` / `:sha-…`) +
   **keel** para auto-update; orquestación con **Docker Compose** (imágenes pinneadas, no `latest`).
-- **Kubernetes** (`k8s/`) solo cuando un servicio lo justifica (caso `casa-raiz` self-host).
+- **Kubernetes** (`k8s/`) solo cuando un servicio lo justifica (caso `casa-raiz` self-host). En homelab,
+  **k3s sobre RPi ARM** con **build multi-arch** (`linux/arm/v7` + `linux/amd64`), **Keel** polleando
+  GHCR para auto-update y notificación a **Telegram** (`nicoq`, `otara-labs`).
+- **AWS CodeDeploy** (`appspec.yml` + scripts `hooks` de deploy) donde el destino es EC2/on-prem en vez
+  de Vercel/k8s (cluster `codedeploy-test*`, experimental).
 - **Artefacto inmutable por SHA** (build-once), promovido por entornos sin rebuild (ver `AGENTS.md §1.bis`).
+
+## 7. Dominios particulares y stacks legacy
+
+**Offensive-security / pentest (dominio, no stack nuevo):** los productos de pentesting (`offsec`,
+`pentest-canvas-hub`, `otara-labs-offensive-security-expertise`) mapean al **web app default**
+(Node/Express/Mongo + React/Vite, o el motor en **Python + FastAPI + Typer**) más **libs puntuales de
+dominio** (`shodan`, `weasyprint` para reportes PDF, `jinja2`). No es un stack aparte: es el default +
+libs según tarea, con el mismo proceso y privacidad de material público (`AGENTS.md §6`).
+
+**Stacks legacy (congelados — no elegir para algo nuevo).** Existen en repos `archivado`/`legacy`
+(`AGENTS.md §6`); se documentan para reconocerlos, **no** para reusarlos:
+
+| Stack legacy | Repo(s) | Reemplazo moderno (para algo nuevo) |
+|---|---|---|
+| AngularJS + Grunt + Bower + Karma/Jasmine | `chequer-front`, `tempi` (front) | React/Vite (§3) |
+| LoopBack 2.x + socket.io | `chequer-back` | Node + Express + Mongoose (§3) |
+| Jade/Pug + Express server-rendered | `codedeploy-test-backend` | Next.js (§2) o API + SPA (§3) |
+| Create React App / react-scripts | `codedeploy-test-frontend` | Vite (§3) |
+| Ionic v1 + Cordova + Gulp | `tempi-ionic` | mobile a decidir (§0, fila mobile) |
+| Electron 1.3 + electron-packager | `tuitpic`, `chequer-electron` | desktop a decidir (§0, fila desktop) |
 
 ---
 

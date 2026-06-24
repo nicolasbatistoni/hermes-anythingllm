@@ -51,6 +51,12 @@ mínimo. Se lee antes de cada iteración. Toda feature responde primero **"¿por
 sistema?"** antes que "¿es conveniente?": si una mecánica/feature no se funda en una causa real del
 dominio, **no entra**. Nada scripteado "para el usuario" cuando el sistema puede producirlo causalmente.
 
+Donde un proyecto tenga además un **doc de arquitectura/diseño** (p. ej. `docs/design/…`: bounded
+contexts, fronteras, dirección de dependencias, invariantes), se lee **junto al norte** antes de cada
+iteración y **todo cambio se filtra también por él**: cumple el norte **Y** respeta la arquitectura
+vigente. Un cambio que necesite desviarse de la arquitectura **modifica primero el doc** (con la
+evidencia), no la viola en silencio (cf. §2.B SADD, §6).
+
 ## 0.ter Sin ceremonia pesada para features chicas/medianas
 
 No invocar flujos formales pesados (brainstorm→spec→plan→N-subagentes) para features chicas o medianas:
@@ -89,11 +95,10 @@ gatea cada merge — la forma de la PR + verificación + diff limpio son el gate
 lo pide o si el cambio es high-risk (arquitectónico, schema/API-breaking, refactor grande). **El merge lo
 hace siempre el agente, nunca lo deja para el usuario:** una PR abierta con CI en verde esperando solo
 que un humano apriete "merge" es trabajo sin terminar, no un entregable. **Esto incluye las PRs de
-release: versionar y publicar es 100% automático** — el pipeline abre el release PR, lo **auto-mergea**
-y corta el **tag + GitHub Release** en la misma corrida, sin gate humano (el merge con `GITHUB_TOKEN` no
-re-dispara el workflow, así que el release se corta en una 2ª invocación del mismo job). No hay paso
-manual para subir código, cortar versión ni publicar. Aplica a **todos los repos** (`dev/` y portfolio):
-cada uno lleva su pipeline de release automático (§1.bis, §6).
+release: versionar y publicar es 100% automático** — el pipeline corta el **tag + GitHub Release** sin
+gate humano, derivando la versión de los Conventional Commits (no hay release manual ni tag a mano). No
+hay paso manual para subir código, cortar versión ni publicar. Aplica a **todos los repos** (`dev/` y
+portfolio): cada uno corre el mismo motor de CI/CD portable (§1.bis, §6).
 
 **Flujo production-ready (esencial):** `main` = "próxima versión publicable", no "lo último que codeé" →
 siempre compila/construye, pasa tests y arranca limpio. **PR chico** (revisable en 10–20 min,
@@ -123,14 +128,37 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   publicar el paquete, OIDC) y **producción protegida** (entorno con required reviewers / OIDC /
   secrets por entorno). Los **tags/releases productivos los crea el pipeline**, no la máquina del dev
   (§1); si el push de un tag debe disparar otro pipeline, encadenarlo explícitamente.
-- **CI/CD homogéneo, definido una sola vez (DRY).** El set de workflows y el pipeline de release+build son
-  **reusables centrales** en `nicolasbatistoni/.github` (su README es la fuente). Set por repo, un archivo
-  por responsabilidad (SRP): `ci.yml` (validar PRs, stack-specific), `pr-title.yml` + `release.yml`
-  (reusables), `deploy.yml` solo si hay CD. **Nombres fijos**, **un solo** mecanismo de release (automático;
-  nunca tag a mano + workflow por tag). Bootstrap por repo: habilitar el toggle *Allow GitHub Actions to
-  create and approve pull requests* (si no, los workflows que abren PRs fallan).
+- **CI/CD homogéneo, definido una sola vez (DRY).** La lógica de CI/CD vive **una sola vez** en el motor
+  portable `nicolasbatistoni/ci-toolkit` (scripts bash; su README es la fuente). Cada repo declara solo
+  sus parámetros en `cicd.yml` (raíz) y lleva un **adaptador fino** por herramienta de CI
+  (`.woodpecker.yml` primario) que solo invoca `cicd <stage>`. Un único comando hace todo el CI/CD —
+  `cicd all` (CI + CD, componibles con `--no-ci`/`--no-cd`)— y corre igual local, en Woodpecker o en
+  cualquier CI. El versionado es automático por Conventional Commits sobre **git tags** (sin
+  release-please ni gate humano). Para cambiar de herramienta de CI se reescribe **solo** el adaptador;
+  los scripts (`lib/`, `steps/`) no se tocan.
 - **Objetivo de tiempos de CI:** feedback de PR ~5–10 min, pipeline de `main` ~10–20 min; si se pasa,
   paralelizar o partir.
+
+## 1.ter Monorepo — cuándo, y cómo no romper el trunk
+
+Un repo puede contener **varios paquetes/apps/productos** (`apps/*`, `services/*`, `packages/*`). Se elige
+**monorepo** cuando comparten tooling, disciplina y ciclo de vida y conviene atomicidad de cambios
+cross-package; se eligen **repos separados** cuando los ciclos de release, los dueños o los dominios son
+independientes. La elección de **estructura física** (qué tecnología/layout) la fija `STACKS.md`; estas
+son las reglas de **proceso**, que no cambian:
+
+- **Todo lo de trunk-based sigue igual** (§1): branch corta + PR + squash merge; **una PR = una unidad
+  lógica** (no mezclar dos paquetes en un mismo cambio salvo que sea un solo cambio atómico que los cruza).
+- **CI con path-filter por paquete:** cada push corre **solo** lo afectado (build/test/deploy del paquete
+  tocado y sus dependientes), no todo el monorepo — mismo motor portable, declarado una vez (DRY, §1.bis).
+- **Versionado e historia por paquete:** cada paquete publicable lleva **su propia SemVer** con **tag
+  prefijado** (`web-vX.Y.Z`, `api-vX.Y.Z`) y **su propio `CHANGELOG.md`**; el bump se deriva de los
+  Conventional Commits **scoped** a ese paquete (`feat(web): …`). Cadencia de release **independiente**
+  por paquete; el pipeline corta el tag/release del paquete que cambió, no de todos.
+- **Frontera de dependencias explícita:** las deps entre paquetes van en una sola dirección válida (cf.
+  §2.B SADD); un paquete no importa internals de otro por fuera de su API pública.
+- **Lo compartido, una sola vez (DRY):** config, hooks, motor de CI/CD y disciplinas viven a nivel raíz y
+  se heredan; no se duplican por paquete.
 
 ## 2. Las disciplinas de verificación — verification first
 
@@ -205,8 +233,11 @@ entre contextos/input parity/respeto del tiempo del usuario); (2) **Anti-pattern
 tutoriales modales, stats ocultos); (3) **Capa de marca** (separar la voz del **producto/empresa hacia
 el usuario** de la voz del **sistema/in-app/in-personaje** del mundo interno; no mezclarlas); (4)
 **Accesibilidad** (escala, contraste suficiente, info no-solo-por-color, navegación por teclado,
-low-motion). Todo cambio visible se revisa además contra el cuerpo de heurísticas/leyes de UX/UI del
-proyecto (si lo tiene). Si no aplica: `UX (UXDD): no-op — …`.
+low-motion); (5) **Estructura de UI — Atomic Design (obligatorio en TODO frontend, cualquier framework
+de componentes):** la UI se compone en **átomos → moléculas → organismos → templates → páginas**;
+componentes chicos, reutilizables y composables, sin duplicar (DRY) ni saltear niveles. Todo cambio
+visible se revisa además contra el cuerpo de heurísticas/leyes de UX/UI del proyecto (si lo tiene). Si no
+aplica: `UX (UXDD): no-op — …`.
 
 ## 3. Gates de verificación por PR + definición de ENTREGADO
 
@@ -234,11 +265,16 @@ Antes de mergear una PR que toca código, el body confirma:
 - **Observabilidad** (si toca lógica crítica): el cambio deja logs/métricas/trazas suficientes para
   operarlo y diagnosticarlo en producción (no se mergea lógica crítica a ciegas).
 - **Bloques de diseño** SADD/PDD/UXDD (§2.B).
-- **Principios** (chequeo en CADA tarea): el cambio respeta **SOLID**, **Clean Code** (nombres claros,
-  funciones chicas, sin código muerto), **KISS** (la solución más simple que funciona), **DRY** (una sola
-  fuente de verdad; reusar/parametrizar antes que duplicar, §3.ter) y **YAGNI** (no construir lo que no
-  se necesita aún). Tensión DRY vs KISS/YAGNI: ante la duda preferí lo simple y concreto; abstraé recién
-  cuando la duplicación duele de verdad. Si un cambio los viola a propósito (deuda deliberada), declararlo en el CHANGELOG.
+- **Principios** (chequeo en CADA cambio/iteración, sin excepción): el cambio respeta **Clean Code**
+  (nombres claros, funciones chicas, sin código muerto), **SOLID**, **KISS** (la solución más simple que
+  funciona), **DRY** (una sola fuente de verdad; reusar/parametrizar antes que duplicar, §3.ter),
+  **YAGNI** (no construir lo que no se necesita aún), **Arquitectura Hexagonal** (ports & adapters: el
+  dominio en el centro, sin depender de infraestructura/UI/IO; las dependencias apuntan hacia adentro y
+  lo externo entra por puertos/adaptadores — cf. §2.B SADD) y las **mejores prácticas de la industria**
+  vigentes del stack. Tensión DRY vs KISS/YAGNI: ante la duda preferí lo simple y concreto; abstraé
+  recién cuando la duplicación duele de verdad. La Arquitectura Hexagonal es el patrón por defecto; un
+  proyecto chico/sin IO real puede simplificarla, declarándolo. Si un cambio viola un principio a
+  propósito (deuda deliberada), declararlo en el CHANGELOG.
 
 **Limpieza tras cada entrega**: borrar los efímeros que ya no se usan (capturas revisadas, scripts de un
 solo uso, artefactos de build descartados, ramas mergeadas). No borrar nada versionado/útil ni los tests.
@@ -318,15 +354,15 @@ escribir lo mínimo propio antes que sumar una dependencia (KISS/YAGNI). Cada de
 compromiso, no un atajo. Para deps que viajan en el artefacto distribuido (código de cliente/bundle), medí el **delta de tamaño
 antes/después** y justificá si crece de forma no trivial.
 
-## 3.quater Tamaño de este archivo — límite soft 30 KB / hard 35 KB (sin perder info jamás)
+## 3.quater Tamaño de este archivo — límite soft 36 KB / hard 40 KB (sin perder info jamás)
 
-`AGENTS.md` se inyecta entero cada sesión, así que su tamaño es un recurso. **Dos límites: soft 30 KB
-(objetivo a no cruzar) y hard 35 KB (tope final infranqueable).** Pasar el soft es una señal para
+`AGENTS.md` se inyecta entero cada sesión, así que su tamaño es un recurso. **Dos límites: soft 36 KB
+(objetivo a no cruzar) y hard 40 KB (tope final infranqueable).** Pasar el soft es una señal para
 condensar/mover detalle a `docs/`; pasar el hard está **prohibido**. Pero ningún límite **justifica
 perder información**: el tamaño se controla **moviendo** detalle a `docs/`, no borrando reglas. Apuntá a
-~25–30 KB para headroom. Si encoge de golpe sin una migración documentada, es señal de que se perdió
+~34–37 KB para headroom. Si encoge de golpe sin una migración documentada, es señal de que se perdió
 contenido — restaurá lo que falte. Toda PR que toque `AGENTS.md` re-chequea el tamaño (el gate de CI lo
-verifica contra el hard de 35 KB).
+verifica contra el hard de 40 KB).
 
 ## 3.quinquies Portfolio de venta — material comercial en `nicolasbatistoni/portfolio`
 
@@ -418,6 +454,16 @@ evidencia que cambió), no in-silently:
 - **Privacidad en material público** (showcase/portfolio/marketing/demos): **nunca nombrar personas**
   (clientes, dueños, contactos); sí se pueden nombrar **negocios/marcas**. Las imágenes públicas del
   producto son **capturas reales** del sistema corriendo, no mockups ni diagramas.
+- **Estado del proyecto: activo / mantenimiento / archivado / experimento.** Cada repo declara su estado
+  en el `README.md`. **Activo** = aplica la Definición de ENTREGADO y todos los gates (§3) sin excepción.
+  **Mantenimiento** = sin features nuevas; solo fixes (seguridad/críticos) con sus gates. **Archivado /
+  legacy** = **congelado**: no se le agregan features, **exento de los gates activos** (TDD/e2e/perf,
+  portfolio/showcase, build obligatorio) y de la disciplina documental viva; se toca solo por un fix de
+  seguridad puntual, y se documenta. **Experimento / spike** = vive corto, no es default de nada y se
+  promueve a activo (asumiendo todos los gates) o se archiva; no queda a medio camino indefinidamente.
+  Un proyecto **archivado/legacy/experimento no es referencia de stack para algo nuevo** (la elección de
+  tecnología nueva se rige por `STACKS.md`, §0.quater). **Reactivar** = cambiar el estado en el `README.md`
+  y volver a cumplir ENTREGADO antes del próximo merge de feature.
 - Cualquier otro compromiso de dominio del proyecto vive en el `AGENTS.md`/`GOAL.md` del proyecto.
 
 ## 7. Enforcement local, build del artefacto y datos de usuario
