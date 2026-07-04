@@ -22,11 +22,13 @@
 | **Microservicio / worker / API chica** (envío de mail, impresión, jobs) | **Node** | **Node** + Express (HTTP) o proceso + libs puntuales | `otara-labs/apps/mail-api`, `fran-colarusso/riviera-worker` |
 | **Videojuego / motor 3D propio** (control total, perf máxima) | **C++** | **C++20** + **Vulkan 1.3** (motor propio) | `spacesim-c` |
 | **Videojuego con motor (prototipo rápido / multiplataforma)** | GDScript / C++ | **Godot 4.x** *(prototipo 2D/3D)* · **Unreal Engine 5.x** *(AAA/Nanite-Lumen)* | `spacesim-godot` (4.6), `gangsters`/`spacesim-pixelart-godot`, `procedural-space-sim` (UE 5.7) |
+| **Juego mobile hyper-casual (Android, monetizado con ads)** | GDScript | **Godot 4.7** (GL Compatibility) + export Android/gradle + **AdMob** (plugin) + **GameAnalytics** + firma keystore + publish Play API | `godot-games/games/*` mobile (ver §4.mobile) |
+| **Juego desktop premium (Steam, Linux+Windows)** | GDScript | **Godot 4.7** (GL Compatibility 2D / Forward+ 3D) + export headless Linux/Windows + **SteamPipe** (steamcmd) + GodotSteam solo on-demand | `godot-games/games/*` Steam (ver §4.desktop-steam) |
 | **Prototipo web 3D / vertical slice sin build** | **JavaScript** | **Three.js** (vanilla HTML/CSS/JS, sin build step) | `spacesim-js` |
 | **Port experimental / lenguaje de sistemas emergente** (MVP CLI, determinismo, sin GC) | **Odin** | **Odin** (compilador + `odin test`); secundario, no default | `spacesim-odin` |
 | **Editor / cockpit local sobre un pipeline IA/ML** (UI de autoría/curación/orquestación; viewport 3D) | **Python + TypeScript** | **FastAPI** (in-process sobre el pipeline) + **React/Vite/Tailwind** (+ react-three-fiber); opcional pywebview desktop | `ai-asset-pipeline/editor` |
 | **Audio / SFX procedural** (síntesis físicamente-fundada, DSP — sin pesos, license-clean) | **Python** | **Python 3.12+** + numpy (síntesis modal) + soundfile (WAV 24-bit/OGG) + pyloudnorm (LUFS ITU-R BS.1770) | `ai-asset-pipeline` (dominio audio) |
-| **App mobile** (híbrida/PWA o nativa) | **TS/JS** o nativo | **Sin default consolidado vigente** — al necesitarlo, elegir y registrar (p. ej. Capacitor/Expo/PWA); `tempi-ionic` (Ionic v1/Cordova) es **legacy**, no default | `tempi-ionic` (legacy) |
+| **App mobile** (híbrida/nativa multiplataforma) | **TypeScript** | **Expo (React Native)** + Expo Router/React Navigation + TanStack Query + tokens propios/StyleSheet (sin NativeWind) + auth Bearer en SecureStore; e2e por `expo export --platform web` + Playwright. `tempi-ionic` (Ionic v1/Cordova) es **legacy** | `otara-labs/apps/queze-mobile`, `fran-colarusso/riviera/driver-app` |
 | **App desktop** (ventana nativa sobre web) | **TS/JS** | **Sin default consolidado vigente** — al necesitarlo, elegir y registrar (Tauri / Electron actual); `tuitpic`, `chequer-electron` (Electron 1.3) son **legacy** | `tuitpic`, `chequer-electron` (legacy) |
 | **IA / ML — pipeline, RAG, servicio de inferencia** (prioriza iteración) | **Python** | **Python 3.12+** + FastAPI + libs ML (torch, embeddings, vector DB) | `agents` (Brain), `claude-rag-memory` |
 | **IA / robótica con presión de latencia** (tiempo real, hot path duro) | **C++** | **C++20** (Python solo el orquestador/glue) | — (criterio, ver §IA) |
@@ -136,6 +138,69 @@ para los juegos serios del repo.
 > Regla: **motor propio C++/Vulkan** cuando el proyecto **es** el motor y la perf es el norte; **motor
 > existente** (Godot/UE5) cuando lo que importa es el juego y la velocidad de iteración; **Three.js/Odin**
 > para prototipos/ports experimentales del mismo modelo en otro stack.
+
+### §4.mobile — Juego mobile hyper-casual (Android, monetizado con ads)
+
+**Cuándo:** juego casual/hyper-casual de sesión corta (<2 min) para **Google Play**, monetizado con
+**ads** (foco: generar ingreso vía volumen + retención). No es un stack nuevo: es el default de juego
+(**Godot 4.x**, fila §0) aplicado a mobile, con el toolchain de deploy/monetización que abajo se fija.
+Las deps externas se **justifican en el PR que las integra** (`AGENTS.md §3.ter`).
+
+**Stack de deploy/monetización de referencia (programa `godot-games/games/*` mobile):**
+- **Motor:** **Godot 4.7** con renderer **GL Compatibility** (`rendering_method.mobile="gl_compatibility"`),
+  input táctil, portrait/landscape según juego. Plantilla de proyecto: `games/spacesim-pixelart`.
+- **Export Android:** `godot --headless --import` (cachea `class_name`) → `--export-release "Android" out.aab`,
+  con **Android build template custom (gradle)**, **JDK 17**, **Android SDK/cmdline-tools** + **export
+  templates 4.7** + `bundletool`. AAB (Play requiere bundle), ETC2/ASTC on.
+- **Ads:** **AdMob** vía plugin **`poingstudios/godot-admob-plugin`** (Godot 4.2+, GDScript, Android;
+  banner/interstitial/rewarded; editor mock ads). Se accede detrás del puerto `IAdService`
+  (`packages/mobile-services`) — el dominio del juego no importa el SDK.
+- **Analytics:** **GameAnalytics** (SDK Godot oficial `GA-SDK-GODOT`, GDExtension) para retención/DAU/
+  ARPDAU, detrás del puerto `IAnalytics` (swappable a Firebase sin tocar dominio). Ingreso/eCPM también
+  desde la consola de AdMob.
+- **Firma + publish:** keystore de release (via env/secrets, **nunca** committeado en `export_presets.cfg`)
+  + **Play Developer API** (`fastlane supply`) para subir a track internal → producción desde CI.
+- **Arquitectura:** hexagonal `src/{domain,application,adapters}` + puertos mobile compartidos en
+  `packages/mobile-services` (`IAdService`/`IAnalytics`/`IConsent`/`ITouchInput`, con adapters Godot y
+  **fakes** para test headless y dev de escritorio) + Atomic Design de UI sobre `packages/ui-kit`.
+- **CI/CD:** todo dockerizado — imagen `ci/Dockerfile.godot-android` (base ci-toolkit + Godot + Android
+  toolchain), stages `build`/`publish` en `cicd`, versionado SemVer automático por Conventional Commits
+  con tag scoped `<juego>-vX.Y.Z`.
+
+> **iOS:** fuera de alcance mientras el dev sea Linux (requiere Mac/Xcode). El puerto `IAdService`/plugin
+> AdMob soportan iOS, así que portar es sumar el target, no rediseñar.
+
+### §4.desktop-steam — Juego desktop premium (Steam, Linux + Windows)
+
+**Cuándo:** juego premium (pago único, USD 3–10) para **Steam**, PC (foco: generar ingreso por venta;
+Steam **prohíbe** modelos basados en ads). No es un stack nuevo: es el default de juego (**Godot 4.x**,
+fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo se fija. Programa:
+`godot-games/docs/design/steam/`.
+
+**Stack de deploy/publicación de referencia (programa `godot-games/games/*` Steam):**
+- **Motor:** **Godot 4.7** binario **simple** (precisión doble solo si el dominio la exige, cf.
+  spacesim-3d). Renderer: **GL Compatibility** para 2D/pixel (máxima compatibilidad GPUs
+  viejas/Proton/Steam Deck); **Forward+** solo para 3D con efectos.
+- **Export desktop:** headless desde CI — `godot --headless --import` → `--export-release "Linux"` +
+  `--export-release "Windows"` con export templates 4.7. **PCK separado** (no embed: deltas mínimos de
+  SteamPipe). Preset Windows con `application/modify_resources=false` (evita rcedit/wine en el export
+  cross desde Linux; icono custom del `.exe` = deuda declarada hasta que duela).
+- **Publicación:** **SteamPipe** (`steamcmd` en la imagen CI) con VDFs parametrizados por env
+  (`STEAM_APP_ID`, depot por OS) — subida automática al branch **`beta`** de Steam en cada release tag;
+  promoción a `default` **manual** en Steamworks (gate forzado por Valve, 2FA web). Canal paralelo:
+  zips por OS + `SHA256SUMS` en el GitHub Release (build-once; alimentan playtests y la venta directa).
+- **SDK de Steam:** **ninguno en el MVP** (YAGNI — un premium sin achievements no lo necesita; Steam
+  Cloud vía Auto-Cloud, config web, cero código). Cuando una feature lo exija: **GodotSteam**
+  (GDExtension) detrás de puertos en `packages/steam-services` (patrón `mobile-services`: puertos +
+  fakes; adapter real en `packages/godot-adapters`; factory con degradación segura sin Steam corriendo).
+- **Arquitectura:** hexagonal `src/{domain,application,adapters}` + `packages/*` (det-rng, ui-kit,
+  settings + `SettingsApplier` para window/volumen, input de teclado/gamepad) + Atomic Design.
+- **CI/CD:** imagen `ci/Dockerfile.godot-desktop` (base ci-toolkit + Godot + export templates +
+  steamcmd), `release.artifact: binary` multi-preset con checksums, SemVer automático con tag scoped
+  `<juego>-vX.Y.Z`.
+
+> **macOS:** fuera de alcance (exige firma/notarización con Mac). Linux+Windows cubren Steam y Steam
+> Deck (Proton); sumar macOS es agregar un preset + firma, no rediseñar.
 
 ## 5. IA / ML / robótica — Python (default) o C++ (si la velocidad manda)
 

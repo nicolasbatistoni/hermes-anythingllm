@@ -154,7 +154,9 @@ son las reglas de **proceso**, que no cambian:
 - **Versionado e historia por paquete:** cada paquete publicable lleva **su propia SemVer** con **tag
   prefijado** (`web-vX.Y.Z`, `api-vX.Y.Z`) y **su propio `CHANGELOG.md`**; el bump se deriva de los
   Conventional Commits **scoped** a ese paquete (`feat(web): …`). Cadencia de release **independiente**
-  por paquete; el pipeline corta el tag/release del paquete que cambió, no de todos.
+  por paquete; el pipeline corta el tag/release del paquete que cambió, no de todos. **Mecanismo:** cada
+  paquete declara `tag_pattern: '<pkg>-v*'` en su `cicd.yml` + su path-filter en el adaptador CI
+  (`when: path:`); el motor **no** filtra commits por path — el aislamiento depende de ambos.
 - **Frontera de dependencias explícita:** las deps entre paquetes van en una sola dirección válida (cf.
   §2.B SADD); un paquete no importa internals de otro por fuera de su API pública.
 - **Lo compartido, una sola vez (DRY):** config, hooks, motor de CI/CD y disciplinas viven a nivel raíz y
