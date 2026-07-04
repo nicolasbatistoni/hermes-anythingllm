@@ -95,10 +95,9 @@ gatea cada merge — la forma de la PR + verificación + diff limpio son el gate
 lo pide o si el cambio es high-risk (arquitectónico, schema/API-breaking, refactor grande). **El merge lo
 hace siempre el agente, nunca lo deja para el usuario:** una PR abierta con CI en verde esperando solo
 que un humano apriete "merge" es trabajo sin terminar, no un entregable. **Esto incluye las PRs de
-release: versionar y publicar es 100% automático** — el pipeline corta el **tag + GitHub Release** sin
-gate humano, derivando la versión de los Conventional Commits (no hay release manual ni tag a mano). No
-hay paso manual para subir código, cortar versión ni publicar. Aplica a **todos los repos** (`dev/` y
-portfolio): cada uno corre el mismo motor de CI/CD portable (§1.bis, §6).
+release: versionar y publicar es 100% automático** (el pipeline corta tag + GitHub Release por
+Conventional Commits, sin gate humano ni tag a mano; detalle §1.bis/§6). Aplica a **todos los repos**
+(`dev/` y portfolio): cada uno corre el mismo motor de CI/CD portable.
 
 **Flujo production-ready (esencial):** `main` = "próxima versión publicable", no "lo último que codeé" →
 siempre compila/construye, pasa tests y arranca limpio. **PR chico** (revisable en 10–20 min,
@@ -107,12 +106,10 @@ revertir). **Feature flags** para lo incompleto (entra a `main` apagado por defa
 + fecha/condición de borrado — §3.ter). **Branch by abstraction** para refactors grandes (no ramas
 largas: abstracción → impl vieja detrás → impl nueva en paralelo → switch por flag → borrar la vieja).
 **Backward-compatibility de datos/estado/saves** (expand/contract; nunca romper un dato persistido
-existente — §6). **Rollback**: flag off > build anterior > revert. **Tags + releases**: toda versión
-distribuida lleva un **annotated tag** SemVer con prefijo `v`; toda versión consumible por humanos lleva
-una release con su artefacto + changelog. **Los tags productivos los crea el pipeline/CI, no la máquina
-del dev** (excepto emergencia documentada); los tags `v*` son **inmutables** (release mala → nueva
-PATCH, no se mueve el tag). **Regla final: el dev no publica versiones desde su máquina; el pipeline las
-publica (trazables/reproducibles/reversibles).** **Progressive delivery** donde haya servicio/usuarios
+existente — §6). **Rollback**: flag off > build anterior > revert. **Tags + releases** (detalle en
+§1.bis y §6): toda versión distribuida lleva un **annotated tag** SemVer `v` que **corta el pipeline, no
+la máquina del dev**; los `v*` son **inmutables** (release mala → nueva PATCH, no se mueve el tag).
+**Progressive delivery** donde haya servicio/usuarios
 (internos → 1 % → 5 % → 25 % → 50 % → 100 % con métricas de error/latencia/KPIs en cada paso). Seguir las
 **métricas de flujo (DORA + salud):** lead time for changes, deployment frequency, change failure rate,
 MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
@@ -121,13 +118,13 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
 
 - **Build-once / artefacto inmutable por SHA.** Cada commit produce un artefacto inmutable
   identificado por su SHA; el **mismo artefacto ya testeado** se promueve por los entornos — no se
-  re-buildea por entorno ni a mano. Etiquetas: `…sha-…` y, en release, `…vX.Y.Z`.
+  re-buildea por entorno ni a mano.
 - **Preview / entorno efímero por PR** cuando el stack lo permita: la PR se revisa contra algo
   **corriendo**, no solo contra el diff.
 - **CI con permiso mínimo por job** (solo los scopes que necesita: leer código, escribir la PR,
   publicar el paquete, OIDC) y **producción protegida** (entorno con required reviewers / OIDC /
   secrets por entorno). Los **tags/releases productivos los crea el pipeline**, no la máquina del dev
-  (§1); si el push de un tag debe disparar otro pipeline, encadenarlo explícitamente.
+  (§1).
 - **CI/CD homogéneo, definido una sola vez (DRY).** La lógica de CI/CD vive **una sola vez** en el motor
   portable `nicolasbatistoni/ci-toolkit` (scripts bash; su README es la fuente). Cada repo declara solo
   sus parámetros en `cicd.yml` (raíz) y lleva un **adaptador fino** por herramienta de CI
@@ -136,6 +133,12 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   cualquier CI. El versionado es automático por Conventional Commits sobre **git tags** (sin
   release-please ni gate humano). Para cambiar de herramienta de CI se reescribe **solo** el adaptador;
   los scripts (`lib/`, `steps/`) no se tocan.
+- **Promoción declarativa por commit (GitOps de manual), no rebuild.** El CD promueve por **bump de
+  definiciones en git**, no por rebuild: `main` en verde publica la imagen **inmutable** `…vX.Y.Z`; el
+  stage **`promote`** reescribe el pin `image:` de `infra/**` a `:vX.Y.Z` y commitea el bump; ese commit
+  **dispara el reconcile en el host** vía **agente pull** (el host tira; CI no empuja ni tiene
+  credenciales del cluster) — **sin poller de registry**. Definiciones **por-repo** en `infra/`. Detalle,
+  anti-loop y setup del host: `STACKS.md §6`.
 - **Objetivo de tiempos de CI:** feedback de PR ~5–10 min, pipeline de `main` ~10–20 min; si se pasa,
   paralelizar o partir.
 
@@ -453,6 +456,12 @@ evidencia que cambió), no in-silently:
   **servicio/app de despliegue continuo** lleva tag siempre y release solo cuando hay algo que
   comunicar; una **librería/CLI/SDK/artefacto público consumible** lleva tag + release + changelog
   **siempre**.
+- **Definición de deploy = fuente de verdad en git (GitOps).** El estado desplegado se declara en
+  `infra/**` del repo (manifests k8s / Compose); **el pin `:vX.Y.Z` lo escribe el pipeline (`promote`),
+  nunca la mano** (editar un `image:` en producción = drift, prohibido). Disparador = **commit de
+  definiciones**, no "apareció una imagen en el registry" (**sin pollers ni `:latest` como trigger**).
+  **Rollback = `git revert` del bump**: el agente pull reconcilia a la versión previa (cf. §1.bis,
+  `STACKS.md §6`).
 - **Privacidad en material público** (showcase/portfolio/marketing/demos): **nunca nombrar personas**
   (clientes, dueños, contactos); sí se pueden nombrar **negocios/marcas**. Las imágenes públicas del
   producto son **capturas reales** del sistema corriendo, no mockups ni diagramas.
