@@ -35,7 +35,7 @@
 | **Robótica / edge / visión en hardware chico** (RPi, microcontrolador) | **Python** o **C/C++** | Python (visión/control alto nivel) · C/C++ firmware | `rpi-self-awareness`, `arduplane-gy-87` |
 | **CLI / herramienta / script / automatización** | **Python** | Python 3.12+ + Typer (CLI) · Node si el ecosistema es JS | `agents` (CLI Typer) |
 | **Integración / MCP server / glue de IA** | **Python** | Python + `mcp` SDK | `hermes-anythingllm`, `claude-rag-memory` |
-| **Servicios self-hosted / homelab** (infra, edge en RPi) | — | **Docker Compose** / **k3s** (imágenes pinneadas `:vX.Y.Z`) → **GitOps por commit + agente pull** (deploy-agent en el host) | `nicoq` (k3s RPi), `rpi-self-awareness` |
+| **Servicios self-hosted / homelab** (infra, edge en RPi) | — | **Docker Compose** / **k3s** (imágenes pinneadas `:X.Y.Z`) → **GitOps por commit + agente pull** (deploy-agent en el host) | `nicoq` (k3s RPi), `rpi-self-awareness` |
 
 **Regla de decisión rápida:**
 1. ¿Lo ve un usuario en el navegador y **no** tiene backend propio? → **Astro** (estático).
@@ -229,15 +229,15 @@ fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo 
 ## 6. Infra, deploy y empaquetado (transversal)
 
 - **Web** → **Vercel** (auto-deploy desde `main` + preview por PR).
-- **Servicios internos / homelab (RPi)** → imágenes **GHCR** versionadas (`:vX.Y.Z` + `:sha-…` para
+- **Servicios internos / homelab (RPi)** → imágenes **GHCR** versionadas (`:X.Y.Z` + `:sha-…` para
   trazabilidad; **`:latest` no es disparador de deploy**) desplegadas por **GitOps declarativo**: las
   definiciones viven **versionadas en el propio repo** bajo `infra/**` (manifests k8s / Compose) y **el
   pin de cada `image:` es la fuente de verdad del estado desplegado** (`AGENTS.md §6`).
 - **Modelo de CD — GitOps por commit + agente pull (reemplaza el polling de registry, retira keel):**
   1. `main` en verde publica el artefacto inmutable y, si corta versión, la **release + imagen
-     `:vX.Y.Z`** (`AGENTS.md §1, §1.bis`).
+     `:X.Y.Z`** (`AGENTS.md §1, §1.bis`).
   2. El stage **`promote`** del pipeline (motor `cicd-toolkit`) **reescribe el tag `image:` en `infra/**`
-     a `:vX.Y.Z` y commitea el bump** — **no re-buildea: pinea el artefacto ya testeado** (build-once).
+     a `:X.Y.Z` y commitea el bump** — **no re-buildea: pinea el artefacto ya testeado** (build-once).
      Declarado en `.promote.files[]` del `cicd.yml` (scoped por-app vía `images:`).
   3. Un **agente de deploy corriendo en el host** (patrón *pull*, `cicd reconcile`) detecta el commit de
      definiciones y **reconcilia** el cluster/compose contra lo declarado (`kubectl apply` /

@@ -134,8 +134,8 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   release-please ni gate humano). Para cambiar de herramienta de CI se reescribe **solo** el adaptador;
   los scripts (`lib/`, `steps/`) no se tocan.
 - **Promoción declarativa por commit (GitOps de manual), no rebuild.** El CD promueve por **bump de
-  definiciones en git**, no por rebuild: `main` en verde publica la imagen **inmutable** `…vX.Y.Z`; el
-  stage **`promote`** reescribe el pin `image:` de `infra/**` a `:vX.Y.Z` y commitea el bump; ese commit
+  definiciones en git**, no por rebuild: `main` en verde publica la imagen **inmutable** `…X.Y.Z`; el
+  stage **`promote`** reescribe el pin `image:` de `infra/**` a `:X.Y.Z` y commitea el bump; ese commit
   **dispara el reconcile en el host** vía **agente pull** (el host tira; CI no empuja ni tiene
   credenciales del cluster) — **sin poller de registry**. Definiciones **por-repo** en `infra/`. Detalle,
   anti-loop y setup del host: `STACKS.md §6`.
@@ -457,7 +457,7 @@ evidencia que cambió), no in-silently:
   comunicar; una **librería/CLI/SDK/artefacto público consumible** lleva tag + release + changelog
   **siempre**.
 - **Definición de deploy = fuente de verdad en git (GitOps).** El estado desplegado se declara en
-  `infra/**` del repo (manifests k8s / Compose); **el pin `:vX.Y.Z` lo escribe el pipeline (`promote`),
+  `infra/**` del repo (manifests k8s / Compose); **el pin `:X.Y.Z` lo escribe el pipeline (`promote`),
   nunca la mano** (editar un `image:` en producción = drift, prohibido). Disparador = **commit de
   definiciones**, no "apareció una imagen en el registry" (**sin pollers ni `:latest` como trigger**).
   **Rollback = `git revert` del bump**: el agente pull reconcilia a la versión previa (cf. §1.bis,
