@@ -35,7 +35,7 @@
 | **Robótica / edge / visión en hardware chico** (RPi, microcontrolador) | **Python** o **C/C++** | Python (visión/control alto nivel) · C/C++ firmware | `rpi-self-awareness`, `arduplane-gy-87` |
 | **CLI / herramienta / script / automatización** | **Python** | Python 3.12+ + Typer (CLI) · Node si el ecosistema es JS | `agents` (CLI Typer) |
 | **Integración / MCP server / glue de IA** | **Python** | Python + `mcp` SDK | `hermes-anythingllm`, `claude-rag-memory` |
-| **Servicios self-hosted / homelab** (infra, edge en RPi) | — | **Docker Compose** / **k3s** (imágenes pinneadas) → GHCR + keel en RPi | `nicoq` (k3s RPi), `rpi-self-awareness` |
+| **Servicios self-hosted / homelab** (infra, edge en RPi) | — | **Docker Compose** / **k3s** (imágenes pinneadas `:vX.Y.Z`) → **GitOps por commit + agente pull** (deploy-agent en el host) | `nicoq` (k3s RPi), `rpi-self-awareness` |
 
 **Regla de decisión rápida:**
 1. ¿Lo ve un usuario en el navegador y **no** tiene backend propio? → **Astro** (estático).
@@ -229,14 +229,39 @@ fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo 
 ## 6. Infra, deploy y empaquetado (transversal)
 
 - **Web** → **Vercel** (auto-deploy desde `main` + preview por PR).
-- **Servicios internos / homelab (RPi)** → imágenes **GHCR** versionadas (`:vX.Y.Z` / `:sha-…`) +
-  **keel** para auto-update; orquestación con **Docker Compose** (imágenes pinneadas, no `latest`).
+- **Servicios internos / homelab (RPi)** → imágenes **GHCR** versionadas (`:vX.Y.Z` + `:sha-…` para
+  trazabilidad; **`:latest` no es disparador de deploy**) desplegadas por **GitOps declarativo**: las
+  definiciones viven **versionadas en el propio repo** bajo `infra/**` (manifests k8s / Compose) y **el
+  pin de cada `image:` es la fuente de verdad del estado desplegado** (`AGENTS.md §6`).
+- **Modelo de CD — GitOps por commit + agente pull (reemplaza el polling de registry, retira keel):**
+  1. `main` en verde publica el artefacto inmutable y, si corta versión, la **release + imagen
+     `:vX.Y.Z`** (`AGENTS.md §1, §1.bis`).
+  2. El stage **`promote`** del pipeline (motor `cicd-toolkit`) **reescribe el tag `image:` en `infra/**`
+     a `:vX.Y.Z` y commitea el bump** — **no re-buildea: pinea el artefacto ya testeado** (build-once).
+     Declarado en `.promote.files[]` del `cicd.yml` (scoped por-app vía `images:`).
+  3. Un **agente de deploy corriendo en el host** (patrón *pull*, `cicd reconcile`) detecta el commit de
+     definiciones y **reconcilia** el cluster/compose contra lo declarado (`kubectl apply` /
+     `compose pull && up -d`, idempotente). El **host tira**; **CI nunca empuja al host** ni tiene
+     credenciales del cluster (mínimo privilegio, `AGENTS.md §1.bis`).
+  - **Anti-loop:** el commit de bump (`chore(release)`, autor bot, solo `infra/**`) no re-corta versión
+    (`chore`→none), no re-buildea (guard autor-bot en `deploy`) ni re-commitea (`promote` idempotente);
+    en el layout multi-archivo (`.woodpecker/`) se refuerza con path-filter (excluir `infra/**` del CI,
+    incluirlo en el reconcile).
+  - **Rollback = `git revert` del commit de bump**: el agente reconcilia a la versión previa; **no se
+    mueve ni reescribe un tag** (`AGENTS.md §6`).
+  - **Setup del host (una vez):** un **agente Woodpecker corriendo EN el host** con label de deploy;
+    kubeconfig/contexto k3s (kind k8s) o docker+compose (kind compose); **auth GHCR en el host**
+    (`imagePullSecret` / `/etc/rancher/k3s/registries.yaml` para k3s, o `docker login ghcr.io` para
+    compose). Pipelines de referencia: `cicd-toolkit/pipelines/woodpecker{,-reconcile}.yml`.
+  - **Retirados:** **keel** (poller de GHCR) y el CronJob casero `auto-deploy` — al migrar cada repo se
+    **eliminan** `infra/**/keel.yaml` y `infra/**/auto-deploy.yaml`.
 - **Kubernetes** (`k8s/`) solo cuando un servicio lo justifica (caso `casa-raiz` self-host). En homelab,
-  **k3s sobre RPi ARM** con **build multi-arch** (`linux/arm/v7` + `linux/amd64`), **Keel** polleando
-  GHCR para auto-update y notificación a **Telegram** (`nicoq`, `otara-labs`).
+  **k3s sobre RPi ARM** con **build multi-arch** (`linux/arm/v7` + `linux/amd64`); el reconcile lo hace
+  el **agente pull en el host** y las notificaciones van a **Telegram** (`nicoq`, `otara-labs`).
 - **AWS CodeDeploy** (`appspec.yml` + scripts `hooks` de deploy) donde el destino es EC2/on-prem en vez
   de Vercel/k8s (cluster `codedeploy-test*`, experimental).
-- **Artefacto inmutable por SHA** (build-once), promovido por entornos sin rebuild (ver `AGENTS.md §1.bis`).
+- **Artefacto inmutable por SHA** (build-once), promovido por entornos sin rebuild; la promoción entre
+  entornos es un **bump de definiciones en git**, no un build nuevo (`AGENTS.md §1.bis`).
 
 ## 7. Dominios particulares y stacks legacy
 
