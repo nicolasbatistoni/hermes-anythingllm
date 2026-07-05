@@ -1,41 +1,21 @@
 #!/usr/bin/env bash
-# commit-msg: enforce Conventional Commits (the input to automatic SemVer versioning).
-# Format: <type>(<scope>)?: <subject>  (subject <= 72 chars)
+# commit-msg (AGENTS §7): exige Conventional Commits con los types permitidos.
+# Tipos: feat fix docs style refactor perf test build ci chore revert  (+ scope opcional, + ! breaking)
+set -euo pipefail
 
-commit_msg_file="$1"
-first_line=$(head -n1 "$commit_msg_file")
+msg_file="$1"
+header="$(head -n1 "$msg_file")"
 
-# Allow Git's auto-generated merge and revert messages.
-if echo "$first_line" | grep -qE '^(Merge|Revert) '; then
-    exit 0
+# Permitir merges y mensajes de fixup/squash.
+case "$header" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+
+re='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .+'
+if ! printf '%s' "$header" | grep -qE "$re"; then
+  echo "✗ commit-msg: el título no cumple Conventional Commits." >&2
+  echo "  Formato: <type>(<scope>)?: <descripción>   p. ej.  feat(gangsters): agrega minimapa" >&2
+  echo "  Types: feat fix docs style refactor perf test build ci chore revert" >&2
+  exit 1
 fi
-
-# Allow fixup/squash commits used during local rebase.
-if echo "$first_line" | grep -qE '^(fixup|squash)! '; then
-    exit 0
-fi
-
-pattern='^(feat|fix|refactor|test|perf|docs|chore|style|build|ci|revert)(\([a-z0-9_-]+\))?!?: .{1,72}$'
-
-if ! echo "$first_line" | grep -qE "$pattern"; then
-    echo ""
-    echo "==================================================================="
-    echo "  ERROR: Commit message does not follow Conventional Commits."
-    echo "==================================================================="
-    echo ""
-    echo "  Expected:  <type>(<scope>)?: <subject>"
-    echo "  Got:       $first_line"
-    echo ""
-    echo "  Allowed types: feat, fix, refactor, test, perf, docs, chore, style, build, ci, revert"
-    echo "  (feat -> MINOR, fix -> PATCH, 'type!:' / BREAKING CHANGE -> MAJOR)"
-    echo ""
-    echo "  Examples:"
-    echo "    feat(api): expose /v1/jobs endpoint"
-    echo "    fix(worker): survive a transient redis blip"
-    echo ""
-    echo "  Subject must be <= 72 chars."
-    echo ""
-    exit 1
-fi
-
 exit 0
