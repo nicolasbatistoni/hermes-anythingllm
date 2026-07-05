@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# commit-msg: enforce Conventional Commits (the input to automatic SemVer versioning).
+# Format: <type>(<scope>)?: <subject>  (subject <= 72 chars)
+
+commit_msg_file="$1"
+first_line=$(head -n1 "$commit_msg_file")
+
+# Allow Git's auto-generated merge and revert messages.
+if echo "$first_line" | grep -qE '^(Merge|Revert) '; then
+    exit 0
+fi
+
+# Allow fixup/squash commits used during local rebase.
+if echo "$first_line" | grep -qE '^(fixup|squash)! '; then
+    exit 0
+fi
+
+pattern='^(feat|fix|refactor|test|perf|docs|chore|style|build|ci|revert)(\([a-z0-9_-]+\))?!?: .{1,72}$'
+
+if ! echo "$first_line" | grep -qE "$pattern"; then
+    echo ""
+    echo "==================================================================="
+    echo "  ERROR: Commit message does not follow Conventional Commits."
+    echo "==================================================================="
+    echo ""
+    echo "  Expected:  <type>(<scope>)?: <subject>"
+    echo "  Got:       $first_line"
+    echo ""
+    echo "  Allowed types: feat, fix, refactor, test, perf, docs, chore, style, build, ci, revert"
+    echo "  (feat -> MINOR, fix -> PATCH, 'type!:' / BREAKING CHANGE -> MAJOR)"
+    echo ""
+    echo "  Examples:"
+    echo "    feat(api): expose /v1/jobs endpoint"
+    echo "    fix(worker): survive a transient redis blip"
+    echo ""
+    echo "  Subject must be <= 72 chars."
+    echo ""
+    exit 1
+fi
+
+exit 0

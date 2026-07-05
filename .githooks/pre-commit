@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# pre-commit: block direct commits to main + basic hygiene.
+# Instalado por `cicd install-hooks` (copia estos hooks a .githooks/ + setea core.hooksPath).
+# Bypass with --no-verify is forbidden per AGENTS.md §7 without user consent.
+
+set -e
+
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "detached")
+
+if [ "$branch" = "main" ]; then
+    echo ""
+    echo "==================================================================="
+    echo "  ERROR: Direct commits to 'main' are forbidden (AGENTS.md §1/§7)."
+    echo "==================================================================="
+    echo ""
+    echo "  Create a short feature branch first:"
+    echo "    git checkout -b <type>-<short-description>"
+    echo ""
+    echo "  Where <type> is one of: feat, fix, refactor, test, perf, docs, chore"
+    echo ""
+    exit 1
+fi
+
+# Block files > 1 MB to keep the repo light and force .gitignore / LFS decisions.
+max_size=$((1024 * 1024))
+large_files=""
+while IFS= read -r file; do
+    if [ -f "$file" ]; then
+        size=$(wc -c < "$file" | tr -d ' ')
+        if [ "$size" -gt "$max_size" ]; then
+            kb=$((size / 1024))
+            large_files="$large_files\n  $file (${kb} KB)"
+        fi
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -n "$large_files" ]; then
+    echo ""
+    echo "ERROR: Large files staged (>1 MB):"
+    printf "$large_files\n"
+    echo ""
+    echo "Move raw data to .gitignore, or use git-lfs for legitimate large assets."
+    echo ""
+    exit 1
+fi
+
+# Naive secret-pattern scan — catches obvious leaks; not a substitute for the CI scanner.
+if git diff --cached -U0 | grep -E '^\+' | \
+   grep -E -i '(api[_-]?key|secret|password|token|bearer)' | \
+   grep -E '[=:]\s*["'\'']?[A-Za-z0-9_\-/+]{20,}["'\'']?' > /dev/null 2>&1; then
+    echo ""
+    echo "ERROR: Possible secret pattern detected in staged changes."
+    echo ""
+    echo "Review with: git diff --cached"
+    echo "If false positive, discuss bypass with the repo owner — do NOT --no-verify silently."
+    echo ""
+    exit 1
+fi
+
+exit 0

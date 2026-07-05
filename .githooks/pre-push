@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# pre-push: block direct push to main + non-fast-forward (force) pushes.
+# stdin format (per `man githooks`): <local_ref> <local_sha> <remote_ref> <remote_sha>
+# Bypass with --no-verify is forbidden per AGENTS.md §7 without user consent.
+
+set -e
+
+protected_branches="main"
+zero_sha="0000000000000000000000000000000000000000"
+
+while read local_ref local_sha remote_ref remote_sha; do
+    [ -z "$remote_ref" ] && continue
+
+    for protected in $protected_branches; do
+        if [ "$remote_ref" = "refs/heads/$protected" ]; then
+            echo ""
+            echo "==================================================================="
+            echo "  ERROR: Direct push to '$protected' is forbidden (AGENTS.md §1)."
+            echo "==================================================================="
+            echo ""
+            echo "  All integration to '$protected' must go via Pull Request:"
+            echo "    git push -u origin <your-branch>"
+            echo "    gh pr create"
+            echo ""
+            exit 1
+        fi
+    done
+
+    # Block non-fast-forward (force) push when rewriting visible history.
+    if [ "$local_sha" != "$zero_sha" ] && [ "$remote_sha" != "$zero_sha" ]; then
+        if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+            echo ""
+            echo "ERROR: Non-fast-forward push detected to $remote_ref."
+            echo "Force pushes are blocked. Rebase/merge upstream first."
+            echo ""
+            exit 1
+        fi
+    fi
+done
+
+exit 0
