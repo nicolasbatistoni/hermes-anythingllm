@@ -485,9 +485,11 @@ evidencia que cambió), no in-silently:
   archivos enormes, secrets obvios), `pre-push` (bloquea push directo y force-push no-fast-forward),
   `commit-msg` (Conventional Commits con los types permitidos). **Prohibido:** saltear hooks
   (`--no-verify` o equivalente), `--force`/force-push sobre la rama principal, y `--no-edit` en un rebase.
-- **Escaneo de seguridad antes de push** (lo corre el hook, si el proyecto es público con más razón): vulns HIGH/CRITICAL en
-  dependencias, secrets en el código, misconfigs de IaC y licencias prohibidas. Hallazgo **corregible** → arreglar antes de
-  pushear; **falso positivo / riesgo aceptado** → entrada en el ignore-file del scanner con **justificación + fecha de revisión
+- **Escaneo de seguridad — gate de CI (no del hook).** El scan completo (Trivy: vulns HIGH/CRITICAL en
+  dependencias, secrets, misconfigs de IaC, licencias prohibidas) corre en el **stage `security` de CI**,
+  bloqueante pre-merge. Localmente el `pre-commit` hace detección rápida de secrets obvios (complemento,
+  no reemplaza el scan de CI). Hallazgo **corregible** → arreglar antes de mergear; **falso positivo /
+  riesgo aceptado** → entrada en el ignore-file del scanner con **justificación + fecha de revisión
   obligatoria** (`exp:YYYY-MM-DD`). **Nunca silenciar un hallazgo sin justificación ni sin fecha de revisión.**
 - **El build del artefacto lo ejecuta el agente — siempre, sin preguntar.** Si el proyecto se distribuye
   como artefacto (binario/paquete/imagen/bundle), ningún cambio que toque código distribuido está
