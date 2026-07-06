@@ -174,3 +174,16 @@ Override with `ANYTHINGLLM_DB_PATH` if your installation differs.
 ## License
 
 MIT
+
+<!-- otara-footer:start -->
+---
+<div align="center">
+  <a href="https://otaralabs.com" target="_blank" rel="noopener">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset=".github/brand/otara-lockup-dark.svg">
+      <img alt="Otara Labs — Software Studio" src=".github/brand/otara-lockup-light.svg" height="34">
+    </picture>
+  </a>
+  <p><sub>Desarrollado por <a href="https://otaralabs.com"><b>Otara Labs</b></a> · Software Studio</sub></p>
+</div>
+<!-- otara-footer:end -->
