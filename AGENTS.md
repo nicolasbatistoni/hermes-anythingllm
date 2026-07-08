@@ -76,6 +76,14 @@ la escalera de `§3.ter` (reusar lo que ya está antes que sumar). **Desviarse d
 registrada en el PR** (por qué el default no sirve, qué se elige, qué costo permanente se asume). Mientras
 `AGENTS.md` define **el proceso** (agnóstico a la tecnología), `STACKS.md` define **la tecnología**.
 
+## 0.quinquies Bugs primero — un error sin resolver bloquea el próximo feature
+
+> **Los errores van antes que los features — siempre.** Nunca se deja un bug/error/regresión conocido
+> sin resolver: se arregla **antes** de arrancar o mergear cualquier trabajo nuevo (feature, mejora,
+> refactor cosmético). Un problema **pre-existente** no se deja pasar ni se justifica con "ya estaba
+> roto"; entra al `BACKLOG.md` con prioridad máxima y se resuelve primero. Ante un bug y un feature
+> compitiendo por el mismo tiempo, **gana el bug** (cf. §0.bis desempate supremo, §3 ENTREGADO).
+
 ## 1. Trunk-based — nunca push directo a la rama principal
 
 `main` (o la rama principal) es el trunk. Todo cambio (hasta una línea) va por **branch corta off
