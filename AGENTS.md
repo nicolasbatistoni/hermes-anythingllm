@@ -134,7 +134,7 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   secrets por entorno). Los **tags/releases productivos los crea el pipeline**, no la máquina del dev
   (§1).
 - **CI/CD homogéneo, definido una sola vez (DRY).** La lógica de CI/CD vive **una sola vez** en el motor
-  portable `nicolasbatistoni/ci-toolkit` (scripts bash; su README es la fuente). Cada repo declara solo
+  portable `nicolasbatistoni/cicd-toolkit` (scripts bash; su README es la fuente). Cada repo declara solo
   sus parámetros en `cicd.yml` (raíz) y lleva un **adaptador fino** por herramienta de CI
   (`.woodpecker.yml` primario) que solo invoca `cicd <stage>`. Un único comando hace todo el CI/CD —
   `cicd all` (CI + CD, componibles con `--no-ci`/`--no-cd`)— y corre igual local, en Woodpecker o en
