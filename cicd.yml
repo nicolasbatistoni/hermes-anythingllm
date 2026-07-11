@@ -1,5 +1,5 @@
-# cicd.yml — parametrización del CI/CD para el motor portable (nicolasbatistoni/ci-toolkit).
-# La lógica vive en el toolkit; este repo declara solo lo propio. Schema: README de ci-toolkit.
+# cicd.yml — parametrización del CI/CD para el motor portable (nicolasbatistoni/cicd-toolkit).
+# La lógica vive en el toolkit; este repo declara solo lo propio. Schema: README de cicd-toolkit.
 name: hermes-anythingllm
 workdir: .
 

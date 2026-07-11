@@ -1,6 +1,6 @@
-# Adaptador Woodpecker fino. La lógica vive en ci-toolkit (`cicd <stage>`). Pinear a un tag vX.Y.Z.
+# Adaptador Woodpecker fino. La lógica vive en cicd-toolkit (`cicd <stage>`). Pinear a un tag vX.Y.Z.
 variables:
-  - &toolkit ghcr.io/nicolasbatistoni/ci-toolkit:latest
+  - &toolkit ghcr.io/nicolasbatistoni/cicd-toolkit:latest
 
 when:
   - event: [pull_request, push]
