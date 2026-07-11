@@ -141,12 +141,11 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   cualquier CI. El versionado es automático por Conventional Commits sobre **git tags** (sin
   release-please ni gate humano). Para cambiar de herramienta de CI se reescribe **solo** el adaptador;
   los scripts (`lib/`, `steps/`) no se tocan.
-- **Promoción declarativa por commit (GitOps de manual), no rebuild.** El CD promueve por **bump de
-  definiciones en git**, no por rebuild: `main` en verde publica la imagen **inmutable** `…X.Y.Z`; el
-  stage **`promote`** reescribe el pin `image:` de `infra/**` a `:X.Y.Z` y commitea el bump; ese commit
-  **dispara el reconcile en el host** vía **agente pull** (el host tira; CI no empuja ni tiene
-  credenciales del cluster) — **sin poller de registry**. Definiciones **por-repo** en `infra/`. Detalle,
-  anti-loop y setup del host: `STACKS.md §6`.
+- **Promoción declarativa por PR al repo de entorno (GitOps), no rebuild.** El CD promueve por **bump de
+  versión en git**, no por rebuild: `main` verde del repo de app publica la imagen **inmutable** `…X.Y.Z`;
+  el stage **`promote`** abre un **PR al repo de entorno** bumpeando el **pin de versión** de la app
+  (`clusters/<env>/apps/<app>.yaml`); **Flux** reconcilia el commit del bump — **el cluster tira; CI no
+  empuja ni tiene credenciales**, sin poller de registry. **Release ≠ deploy**. Detalle: `STACKS.md §6`.
 - **Objetivo de tiempos de CI:** feedback de PR ~5–10 min, pipeline de `main` ~10–20 min; si se pasa,
   paralelizar o partir.
 
@@ -464,12 +463,12 @@ evidencia que cambió), no in-silently:
   **servicio/app de despliegue continuo** lleva tag siempre y release solo cuando hay algo que
   comunicar; una **librería/CLI/SDK/artefacto público consumible** lleva tag + release + changelog
   **siempre**.
-- **Definición de deploy = fuente de verdad en git (GitOps).** El estado desplegado se declara en
-  `infra/**` del repo (manifests k8s / Compose); **el pin `:X.Y.Z` lo escribe el pipeline (`promote`),
-  nunca la mano** (editar un `image:` en producción = drift, prohibido). Disparador = **commit de
-  definiciones**, no "apareció una imagen en el registry" (**sin pollers ni `:latest` como trigger**).
-  **Rollback = `git revert` del bump**: el agente pull reconcilia a la versión previa (cf. §1.bis,
-  `STACKS.md §6`).
+- **Definición de deploy = fuente de verdad en git (GitOps repo-de-entorno).** El repo de **producto** es
+  dueño de sus manifests/chart; el **repo de entorno** (p.ej. `otara-infra`) declara el **pin de versión
+  por app**. **El pin lo escribe el pipeline (`promote`) vía PR al repo de entorno, nunca la mano**
+  (editar un `image:` en producción = drift, prohibido). Disparador =
+  **commit del bump**, no "apareció una imagen en el registry" (**sin pollers ni `:latest`**). **Rollback
+  = `git revert` del bump**: **Flux** reconcilia a la versión previa (cf. §1.bis, `STACKS.md §6`).
 - **Privacidad en material público** (showcase/portfolio/marketing/demos): **nunca nombrar personas**
   (clientes, dueños, contactos); sí se pueden nombrar **negocios/marcas**. Las imágenes públicas del
   producto son **capturas reales** del sistema corriendo, no mockups ni diagramas.
