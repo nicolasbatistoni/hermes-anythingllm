@@ -163,7 +163,7 @@ Las deps externas se **justifican en el PR que las integra** (`AGENTS.md §3.ter
 - **Arquitectura:** hexagonal `src/{domain,application,adapters}` + puertos mobile compartidos en
   `packages/mobile-services` (`IAdService`/`IAnalytics`/`IConsent`/`ITouchInput`, con adapters Godot y
   **fakes** para test headless y dev de escritorio) + Atomic Design de UI sobre `packages/ui-kit`.
-- **CI/CD:** todo dockerizado — imagen `ci/Dockerfile.godot-android` (base ci-toolkit + Godot + Android
+- **CI/CD:** todo dockerizado — imagen `ci/Dockerfile.godot-android` (base cicd-toolkit + Godot + Android
   toolchain), stages `build`/`publish` en `cicd`, versionado SemVer automático por Conventional Commits
   con tag scoped `<juego>-vX.Y.Z`.
 
@@ -195,7 +195,7 @@ fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo 
   fakes; adapter real en `packages/godot-adapters`; factory con degradación segura sin Steam corriendo).
 - **Arquitectura:** hexagonal `src/{domain,application,adapters}` + `packages/*` (det-rng, ui-kit,
   settings + `SettingsApplier` para window/volumen, input de teclado/gamepad) + Atomic Design.
-- **CI/CD:** imagen `ci/Dockerfile.godot-desktop` (base ci-toolkit + Godot + export templates +
+- **CI/CD:** imagen `ci/Dockerfile.godot-desktop` (base cicd-toolkit + Godot + export templates +
   steamcmd), `release.artifact: binary` multi-preset con checksums, SemVer automático con tag scoped
   `<juego>-vX.Y.Z`.
 
@@ -234,8 +234,15 @@ fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo 
   manifests/chart viven en el **repo del producto**; un **repo de entorno** (p.ej. `otara-infra` para el
   cluster de producción) declara el **pin de versión por app**, que es la **fuente de verdad del estado
   desplegado** (`AGENTS.md §6`).
-- **Modelo de CD — repo-de-entorno + Flux** (reemplaza el agente pull en el host, el polling de registry
-  y keel):
+- **El motor `cicd-toolkit` es multi-build y multi-deploy** (no CI-only ni k8s-only). **Build:** artefacto
+  `release.artifact: none|binary|android` (binario genérico · export Godot desktop · AAB a Play) **+**
+  **imagen OCI** vía la sección `deploy` (engine `docker` **o** `podman` rootless). **Deploy
+  (`reconcile.kind`):** **k8s/k3s** (`kubectl apply`) · **docker compose** (`compose up -d`) · **un
+  contenedor** `docker run` (`kind: docker`). El **target elige el mecanismo**: k8s → **GitOps
+  repo-de-entorno + Flux** (abajo, preferido); docker/compose (host sin k8s, p. ej. RPi) → `cicd reconcile`
+  **pull en el host**.
+- **Modelo de CD — repo-de-entorno + Flux** (para el target **k8s**; reemplaza el agente pull en el host
+  para k8s, el polling de registry y keel):
   - **Ownership.** El **repo de producto** es dueño de su **set de manifests/chart** (Deployment/
     StatefulSet, Service, HTTPRoute, PVC, ConfigMap, Secret refs, ServiceAccount/RBAC, NetworkPolicy
     *allow-rules de la app*, PodDisruptionBudget, HPA, migrations/Jobs, config por entorno). El **repo de
@@ -268,8 +275,10 @@ fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo 
     **Woodpecker**) queda **vendored** en el repo de entorno (`apps/<svc>/`); no aplica el repo-de-app.
   - **Setup (una vez):** `flux bootstrap` + secret de decrypt (SOPS/age) in-cluster + **auth GHCR
     in-cluster** (`imagePullSecret` / `registries.yaml` de k3s); detalle por cluster en el repo de entorno.
-  - **Retirados:** el **agente pull en el host** (`cicd reconcile` + agente Woodpecker-en-host), **keel**
-    (poller de GHCR) y el CronJob casero `auto-deploy` — Flux es el motor de reconcile único.
+  - **Retirados (para k8s):** el **agente pull en el host** para k8s (`cicd reconcile` k8s +
+    agente Woodpecker-en-host), **keel** (poller de GHCR) y el CronJob casero `auto-deploy` — para k8s,
+    Flux es el motor de reconcile único. (`cicd reconcile` **sigue vigente** para targets **docker/
+    compose** sin k8s, p. ej. un contenedor o un compose en un host chico.)
 - **Kubernetes** (`k8s/`) solo cuando un servicio lo justifica (caso `casa-raiz` self-host). En homelab,
   **k3s** (incl. RPi ARM) con **build multi-arch** (`linux/arm/v7` + `linux/amd64`); el reconcile lo hace
   **Flux** y las notificaciones van a **Telegram** (`nicoq`, `otara-labs`).
