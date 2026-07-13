@@ -7,5 +7,15 @@ security:
   fs_scan_ref: .
   severity: CRITICAL,HIGH
 
+# ── paths-guard — la red que hace segura la allowlist de disparo (ver .woodpecker.yml) ──
+# El disparo del CI es una allowlist, o sea fail-closed: si aparece código nuevo y nadie agrega su
+# filtro, ese código no se testea nunca y el gate se saltea EN SILENCIO. `cicd paths-guard` cruza
+# `git ls-files` contra los include: declarados y FALLA si algo quedó sin cubrir. Acá van los exentos:
+# lo que no puede afectar a ningún artefacto ni test. (Docs, .gitignore y .githooks/** ya vienen por
+# default en el motor.)
+paths_guard:
+  ignore:
+    - '.github/**'      # solo los assets de marca del README; no hay workflows en este repo
+
 release:
   artifact: none

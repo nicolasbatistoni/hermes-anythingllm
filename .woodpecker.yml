@@ -2,13 +2,36 @@
 variables:
   - &toolkit ghcr.io/nicolasbatistoni/cicd-toolkit:latest
 
+  # ── Allowlist del disparo (AGENTS §1.ter) ─────────────────────────────────────────────────────────
+  # Un pipeline corre si y solo si el commit tocó código de este paquete, código de una dependencia que
+  # consume, o la definición de su propio pipeline. Un typo en el README no levanta un pod.
+  # `cicd paths-guard` (en el step `security`, el único sin filtro) verifica que esta lista sea TOTAL:
+  # si aparece código nuevo sin su filtro, ROMPE el CI en vez de saltearse el gate en silencio.
+  - &code_paths
+    include:
+      - 'mcp/**'                # código propio: el servidor MCP que Hermes levanta (el corazón del repo)
+      - 'scripts/**'            # código propio: el sync de sesiones → AnythingLLM (corre por cron)
+      - 'config/**'             # contenido que se instala/pega en Hermes (snippet de mcp_servers, regla
+                                # de SOUL.md): no es doc, es lo que termina configurando al agente
+      # Los instaladores SON el entregable: copian el MCP + el sync, parchean config.yaml/SOUL.md/.env
+      # y arman el cron. (No hay manifest de deps propio: la dep — el paquete `mcp` — la provee el venv
+      # de Hermes, y el propio install.sh la verifica con `import mcp` antes de instalar.)
+      - 'install.sh'            # Linux / macOS
+      - 'install.ps1'           # Windows
+      - 'cicd.yml'              # su propia definición de pipeline: sin esto, cambiarla no la re-corre
+      - '.woodpecker.yml'
+      - 'AGENTS.md'             # va adrede aunque sea un doc: `cicd ci` corre step_docs_guard, que
+                                # gatea su tamaño (§3.quater) — si nada lo dispara, no corre nunca.
+
 when:
   - event: [pull_request, push]
 
 steps:
-  security:
-    image: *toolkit
-    commands: [cicd security]
+  security:                           # SIN when:path → corre SIEMPRE. Única excepción, deliberada:
+    image: *toolkit                   # Trivy caza un secreto commiteado hasta en un README, y el
+    commands:                         # paths-guard tiene que correr aunque el commit no toque código.
+      - cicd security
+      - cicd paths-guard
 
   release:
     image: *toolkit
@@ -16,5 +39,6 @@ steps:
     when:
       - event: push
         branch: main
+        path: *code_paths
     environment:
       GH_TOKEN: { from_secret: gh_token }
