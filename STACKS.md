@@ -234,9 +234,18 @@ fila §0) aplicado a desktop, con el toolchain de export/publicación que abajo 
   manifests/chart viven en el **repo del producto**; un **repo de entorno** (p.ej. `otara-infra` para el
   cluster de producción) declara el **pin de versión por app**, que es la **fuente de verdad del estado
   desplegado** (`AGENTS.md §6`).
+- **El pipeline de CI NO se escribe: lo GENERA el motor** (`cicd render-pipeline`) desde el `cicd.yml`.
+  Woodpecker no tiene include remoto, así que cada repo necesita su `.woodpecker.yml` físico — la respuesta
+  no es herencia, es **generación**. Los dos datos genuinos de cada repo (`paths` = allowlist de disparo,
+  `images.ci` = imagen del step) van al `cicd.yml`; el resto lo pone el motor. El gate
+  `cicd render-pipeline --check` corre en el step `security` y **rompe el CI** si alguien edita el
+  `.woodpecker.yml` a mano.
 - **El motor `cicd-toolkit` es multi-build y multi-deploy** (no CI-only ni k8s-only). **Build:** artefacto
-  `release.artifact: none|binary|android` (binario genérico · export Godot desktop · AAB a Play) **+**
-  **imagen OCI** vía la sección `deploy` (engine `docker` **o** `podman` rootless). **Deploy
+  `release.artifact: none|binary|godot_desktop|android` (binario genérico · export Godot desktop · AAB a
+  Play), despachado por el puerto `artifact` (sumar iOS/Steam/Flatpak = un adaptador nuevo, no otra rama de
+  un `case`) **+** **imagen OCI** vía la sección `deploy` (engine `docker` **o** `podman` rootless). Ojo:
+  **la imagen OCI NO es un valor de `release.artifact`** — es otro ciclo de vida (build-once + scan + push)
+  y vive en `deploy`. **Deploy
   (`reconcile.kind`):** **k8s/k3s** (`kubectl apply`) · **docker compose** (`compose up -d`) · **un
   contenedor** `docker run` (`kind: docker`). El **target elige el mecanismo**: k8s → **GitOps
   repo-de-entorno + Flux** (abajo, preferido); docker/compose (host sin k8s, p. ej. RPi) → `cicd reconcile`

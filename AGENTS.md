@@ -135,12 +135,13 @@ MTTR, tiempo de PR abierto, tiempo de CI, flags vencidas, rollbacks.
   (§1).
 - **CI/CD homogéneo, definido una sola vez (DRY).** La lógica de CI/CD vive **una sola vez** en el motor
   portable `nicolasbatistoni/cicd-toolkit` (scripts bash; su README es la fuente). Cada repo declara solo
-  sus parámetros en `cicd.yml` (raíz) y lleva un **adaptador fino** por herramienta de CI
-  (`.woodpecker.yml` primario) que solo invoca `cicd <stage>`. Un único comando hace todo el CI/CD —
-  `cicd all` (CI + CD, componibles con `--no-ci`/`--no-cd`)— y corre igual local, en Woodpecker o en
-  cualquier CI. El versionado es automático por Conventional Commits sobre **git tags** (sin
-  release-please ni gate humano). Para cambiar de herramienta de CI se reescribe **solo** el adaptador;
-  los scripts (`lib/`, `steps/`) no se tocan.
+  sus parámetros en `cicd.yml` (raíz), y **el adaptador de CI (`.woodpecker.yml`) NO se escribe: lo GENERA
+  el motor** (`cicd render-pipeline`). El gate `cicd render-pipeline --check` corre en el step `security`
+  (el único sin filtro de path) y **rompe el CI si alguien lo edita a mano**: un generado que nadie vigila
+  se pudre igual que uno copiado. Un único comando hace todo — `cicd all` (componible con
+  `--no-ci`/`--no-cd`)— y corre igual local o en el CI. El versionado es automático por Conventional
+  Commits sobre **git tags** (sin release-please ni gate humano). Para cambiar de herramienta de CI se
+  reescribe **solo** el generador; `lib/` y `steps/` no se tocan.
 - **Promoción declarativa por PR al repo de entorno (GitOps), no rebuild.** El CD promueve por **bump de
   versión en git**, no por rebuild: `main` verde del repo de app publica la imagen **inmutable** `…X.Y.Z`;
   el stage **`promote`** abre un **PR al repo de entorno** bumpeando el **pin de versión** de la app
