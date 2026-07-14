@@ -1,47 +1,54 @@
-# Adaptador Woodpecker fino. La lógica vive en cicd-toolkit (`cicd <stage>`). Pinear a un tag vX.Y.Z.
+# ⚠ ARCHIVO GENERADO por `cicd render-pipeline` — NO EDITAR A MANO.
+#
+# Fuente de verdad: `cicd.yml` (`.paths` = allowlist de disparo, `.images` = imagen por step) + la
+# plantilla del motor (nicolasbatistoni/cicd-toolkit). Para cambiar el pipeline, cambiá uno de esos dos y
+# corré `cicd render-pipeline`.
+#
+# El step `security` corre `cicd render-pipeline --check`: si este archivo quedó desincronizado de su
+# fuente (porque alguien lo editó a mano), **el CI falla**. Un generado que nadie vigila se pudre igual
+# que un copiado.
+
 variables:
   - &toolkit ghcr.io/nicolasbatistoni/cicd-toolkit:latest
 
-  # ── Allowlist del disparo (AGENTS §1.ter) ─────────────────────────────────────────────────────────
-  # Un pipeline corre si y solo si el commit tocó código de este paquete, código de una dependencia que
-  # consume, o la definición de su propio pipeline. Un typo en el README no levanta un pod.
-  # `cicd paths-guard` (en el step `security`, el único sin filtro) verifica que esta lista sea TOTAL:
-  # si aparece código nuevo sin su filtro, ROMPE el CI en vez de saltearse el gate en silencio.
+  # Allowlist de disparo (AGENTS §1.ter). Fuente: `.paths` del cicd.yml — acá es DERIVADA.
+  # INVARIANTE: un pipeline corre si y solo si el commit tocó código del paquete, código de una
+  # dependencia que ese paquete consume, o su propia definición de pipeline.
   - &code_paths
     include:
-      - 'mcp/**'                # código propio: el servidor MCP que Hermes levanta (el corazón del repo)
-      - 'scripts/**'            # código propio: el sync de sesiones → AnythingLLM (corre por cron)
-      - 'config/**'             # contenido que se instala/pega en Hermes (snippet de mcp_servers, regla
-                                # de SOUL.md): no es doc, es lo que termina configurando al agente
-      # Los instaladores SON el entregable: copian el MCP + el sync, parchean config.yaml/SOUL.md/.env
-      # y arman el cron. (No hay manifest de deps propio: la dep — el paquete `mcp` — la provee el venv
-      # de Hermes, y el propio install.sh la verifica con `import mcp` antes de instalar.)
-      - 'install.sh'            # Linux / macOS
-      - 'install.ps1'           # Windows
-      - 'cicd.yml'              # su propia definición de pipeline: sin esto, cambiarla no la re-corre
+      - 'mcp/**'
+      - 'scripts/**'
+      - 'config/**'
+      - 'install.sh'
+      - 'install.ps1'
+      - 'cicd.yml'
       - '.woodpecker.yml'
-      - 'AGENTS.md'             # va adrede aunque sea un doc: `cicd ci` corre step_docs_guard, que
-                                # gatea su tamaño (§3.quater) — si nada lo dispara, no corre nunca.
+      - 'AGENTS.md'
 
 when:
-  # `push` dispara en CADA push a CUALQUIER rama. O sea que una rama de trabajo corría el pipeline al
-  # pushearla y OTRA VEZ al abrir el PR: el mismo SHA, dos pipelines (y una rama sin PR consumía el
-  # cluster sin gatear nada). El evento `pull_request` SÍ se re-dispara en cada commit nuevo del PR
-  # —verificado contra la API—, así que el PR sigue cubriendo todo; y el push a `main` (post-merge)
-  # sigue disparando release/deploy.
+  # `push` dispara en CADA push a CUALQUIER rama. Sin restringirlo a main, cada commit de una rama
+  # corría el pipeline DOS VECES: una por el push de la rama y otra por el pull_request, sobre el MISMO
+  # SHA. `pull_request` se re-dispara en cada commit nuevo del PR, así que el PR ya cubre todo.
   - event: pull_request
   - event: push
     branch: main
 
 steps:
-  security:                           # SIN when:path → corre SIEMPRE. Única excepción, deliberada:
-    image: *toolkit                   # Trivy caza un secreto commiteado hasta en un README, y el
-    commands:                         # paths-guard tiene que correr aunque el commit no toque código.
+  security:                 # SIN when:path → corre SIEMPRE. Única excepción, deliberada: Trivy caza un
+    image: *toolkit         # secreto commiteado hasta en un README, y los guards tienen que correr
+    commands:               # aunque el commit no toque código.
       - cicd security
-      - cicd paths-guard
+      - cicd paths-guard              # la allowlist cubre TODO el código versionado (si no, fail-closed silencioso)
+      - cicd render-pipeline --check  # este archivo sigue en sync con su fuente (un generado sin gate se pudre)
 
   release:
     image: *toolkit
+    # `cicd release` a secas: el MOTOR ya autentica (`vcs_setup_auth` → gh auth setup-git) y trae el
+    # historial y los tags (`vcs_ensure_history` → unshallow + fetch --tags). Antes eso vivía acá, en cada
+    # adaptador — y 19 de 27 NO lo tenían: el motor no veía los tags, creía que era el primer release y
+    # calculaba la versión desde 0.0.0, publicando una versión PARA ATRÁS (le pasó a ai-asset-pipeline).
+    # El motor NECESITA credenciales e historial para hacer su trabajo: no puede depender de que 27 YAMLs
+    # se acuerden de dárselos.
     commands: [cicd release]
     when:
       - event: push

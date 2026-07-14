@@ -19,3 +19,16 @@ paths_guard:
 
 release:
   artifact: none
+
+# ── El pipeline se GENERA desde acá (`cicd render-pipeline`) ───────────────────────────────────────
+# El `.woodpecker.yml` se deriva del cicd.yml. El gate `cicd render-pipeline --check` (step `security`)
+# rompe el CI si alguien lo edita a mano. Allowlist de disparo (AGENTS §1.ter):
+paths:
+  - 'mcp/**'
+  - 'scripts/**'
+  - 'config/**'
+  - 'install.sh'
+  - 'install.ps1'
+  - 'cicd.yml'
+  - '.woodpecker.yml'
+  - 'AGENTS.md'
