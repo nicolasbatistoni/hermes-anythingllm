@@ -24,7 +24,14 @@ variables:
                                 # gatea su tamaño (§3.quater) — si nada lo dispara, no corre nunca.
 
 when:
-  - event: [pull_request, push]
+  # `push` dispara en CADA push a CUALQUIER rama. O sea que una rama de trabajo corría el pipeline al
+  # pushearla y OTRA VEZ al abrir el PR: el mismo SHA, dos pipelines (y una rama sin PR consumía el
+  # cluster sin gatear nada). El evento `pull_request` SÍ se re-dispara en cada commit nuevo del PR
+  # —verificado contra la API—, así que el PR sigue cubriendo todo; y el push a `main` (post-merge)
+  # sigue disparando release/deploy.
+  - event: pull_request
+  - event: push
+    branch: main
 
 steps:
   security:                           # SIN when:path → corre SIEMPRE. Única excepción, deliberada:
