@@ -1,16 +1,15 @@
 # AGENTS.md — Reglas de proceso (agnósticas a la tecnología)
 
-> **Documento canónico de proceso para TODOS los proyectos bajo `dev/`.** Lo leen Claude Code, Codex
-> y cualquier agente/contribuidor. Estas reglas **override** el comportamiento por defecto de cualquier
-> agente. Son **agnósticas al stack**: aplican igual a un motor C++/Vulkan, una web React/Next, un
-> backend Go, un firmware embebido o un notebook de datos. Cada proyecto puede tener su propio
-> `AGENTS.md` que **concreta** estas reglas a su tecnología y dominio; ante conflicto, el del proyecto
-> manda sobre éste **solo** en lo específico (nunca para relajar una disciplina de verificación).
+> **Documento canónico de proceso para TODOS los proyectos bajo `dev/`.** Lo leen Claude Code, Codex y
+> cualquier agente/contribuidor. Estas reglas **override** el comportamiento por defecto de cualquier
+> agente. Son **agnósticas al stack** (motor C++/Vulkan, web React/Next, backend Go, firmware embebido,
+> notebook de datos). Cada proyecto puede tener su propio `AGENTS.md` que **concreta** estas reglas a su
+> tecnología y dominio; ante conflicto, el del proyecto manda sobre éste **solo** en lo específico (nunca
+> para relajar una disciplina de verificación).
 >
-> Donde abajo se dice "test", "build", "linter", "framework de test", "runtime", "módulo", etc., se
-> entiende **el equivalente del stack del proyecto** (p. ej. test = Catch2/Jest/pytest/go test; build =
-> CMake/Vite/cargo/gradle; linter = clang-tidy/eslint/ruff). La **disciplina** es la misma; la
-> **herramienta** la define el proyecto.
+> Donde abajo se dice "test", "build", "linter", "runtime", "módulo", etc., se entiende **el equivalente
+> del stack del proyecto** (test = Catch2/Jest/pytest/go test; build = CMake/Vite/cargo/gradle; linter =
+> clang-tidy/eslint/ruff). La **disciplina** es la misma; la **herramienta** la define el proyecto.
 
 ## 0. Idioma — al usuario, en su idioma (español)
 
@@ -325,6 +324,12 @@ la raíz van con basename en MAYÚSCULAS** (`GOAL.md`, `README.md`, `IDEAS.md`, 
   se QUITA de `BACKLOG.md` y su registro pasa a `CHANGELOG.md`** (mover, no copiar): no se deja la tarea
   marcada `✅` en BACKLOG. BACKLOG contiene solo lo pendiente/en curso.
 - **`CHANGELOG.md`** — append-only: cada PR mergeado = entry (título + fecha + cambios + verificación).
+- **Blog del lab ("Notas")** — capa editorial sobre el changelog (*qué* cambió lo dice el changelog; la
+  nota, **por qué, cómo funciona y qué impacto tiene**): **una nota por proyecto y por día**, agregada en
+  el **mismo merge** que entrega material, como el CHANGELOG (día denso → notas temáticas de la misma
+  fecha; día sin material → no se publica). **El trabajo de cliente NO se publica** (§6). Notas en
+  `otara-labs/apps/web/src/content/blog/`; formato y reglas de transformación en el canónico
+  **`project-template/docs/blog-editorial.md`**.
 - **Docs narrativos/de showcase** (si el proyecto los tiene, p. ej. lore o portfolio) — avanzan **en
   paralelo** al código: una feature nueva sin su entrada correspondiente está incompleta; reflejan el
   mejor estado actual, no un snapshot viejo.
@@ -333,15 +338,15 @@ la raíz van con basename en MAYÚSCULAS** (`GOAL.md`, `README.md`, `IDEAS.md`, 
 agregar al destino), nunca copiando ni dejando duplicado.**
 
 **Flujo cada PR:** actualizar CHANGELOG (siempre que entregue algo, **quitando** la tarea de BACKLOG) +
-mover ideas maduradas de IDEAS a BACKLOG en el mismo merge. README solo si cambió algo estático. Un PR
-que entrega y NO toca CHANGELOG bloquea la coherencia. Re-evaluar showcase/README cada iteración que
-avance lo que se ve o se promete (actualizarlos en el mismo merge; ninguno queda mostrando un estado peor
-o desactualizado).
+**sumar la nota del blog** del día/proyecto si el cambio tiene material editorial (no aplica a trabajo de
+cliente) + mover ideas maduradas de IDEAS a BACKLOG en el mismo merge. README solo si cambió algo
+estático. Un PR que entrega y NO toca CHANGELOG bloquea la coherencia. Re-evaluar showcase/README cada
+iteración que avance lo que se ve o se promete (actualizarlos en el mismo merge; ninguno queda mostrando
+un estado peor o desactualizado).
 
-**No se crean archivos de documentación nuevos** (`*.md`, READMEs y similares) salvo pedido explícito del
-usuario, como parte del flujo spec/plan de un cambio con complejidad arquitectónica genuina (§0.ter), o
-como actualización de los docs vivos de arriba (GOAL/README/IDEAS/BACKLOG/CHANGELOG/showcase). La doc por
-default vive en los archivos que ya existen, no en archivos nuevos sueltos.
+**No se crean archivos de documentación nuevos** (`*.md`, READMEs) salvo pedido explícito del usuario,
+como parte del flujo spec/plan de un cambio con complejidad arquitectónica genuina (§0.ter), o como
+actualización de los docs vivos de arriba. La doc por default vive en los archivos que ya existen.
 
 ## 3.ter Disciplina de flags/parámetros de ejecución — SOLID/DRY/KISS/YAGNI
 
@@ -369,48 +374,42 @@ antes/después** y justificá si crece de forma no trivial.
 
 ## 3.quater Tamaño de este archivo — límite soft 36 KB / hard 40 KB (sin perder info jamás)
 
-`AGENTS.md` se inyecta entero cada sesión, así que su tamaño es un recurso. **Dos límites: soft 36 KB
-(objetivo a no cruzar) y hard 40 KB (tope final infranqueable).** Pasar el soft es una señal para
-condensar/mover detalle a `docs/`; pasar el hard está **prohibido**. Pero ningún límite **justifica
-perder información**: el tamaño se controla **moviendo** detalle a `docs/`, no borrando reglas. Apuntá a
-~34–37 KB para headroom. Si encoge de golpe sin una migración documentada, es señal de que se perdió
-contenido — restaurá lo que falte. Toda PR que toque `AGENTS.md` re-chequea el tamaño (el gate de CI lo
-verifica contra el hard de 40 KB).
+`AGENTS.md` se inyecta entero cada sesión: su tamaño es un recurso. **Soft 36 KB** (objetivo; pasarlo =
+señal de condensar/mover detalle a `docs/`) y **hard 40 KB** (**prohibido** cruzarlo; el gate de CI lo
+verifica). Ningún límite **justifica perder información**: el tamaño se controla **moviendo** detalle a
+`docs/`, no borrando reglas. Apuntá a ~34–37 KB de headroom. Si encoge de golpe sin migración documentada,
+se perdió contenido — restaurá lo que falte. Toda PR que toque este archivo re-chequea el tamaño.
 
 ## 3.quinquies Portfolio de venta — material comercial en `nicolasbatistoni/portfolio`
 
-Todo proyecto **publicable/vendible** mantiene su material de portfolio **pensado para la venta** en el
-repo central **`nicolasbatistoni/portfolio`**, bajo una carpeta con el **nombre del repo del proyecto**:
-`nicolasbatistoni/portfolio/<nombre-repo-del-proyecto>/`. Es el material que se le muestra a un cliente
-potencial (no doc técnica): qué problema resuelve, para quién y con qué resultado.
+Todo proyecto **publicable/vendible** mantiene su material de venta en el repo central
+**`nicolasbatistoni/portfolio`**, bajo una carpeta con el **nombre del repo del proyecto**. Es lo que se
+le muestra a un cliente potencial (no doc técnica): qué problema resuelve, para quién y con qué resultado.
 
-**Sin detalle de implementación (regla dura):** el portfolio **nunca nombra tecnologías, frameworks,
-librerías, lenguajes, arquitectura, infraestructura ni decisiones técnicas**. Se habla en lenguaje de
-**cliente** (problema → solución → resultado), no del "cómo está hecho". Cualquier entrada que mencione
-el "cómo" técnico no cumple y se corrige.
+**Sin detalle de implementación (regla dura):** **nunca nombra tecnologías, frameworks, librerías,
+lenguajes, arquitectura, infraestructura ni decisiones técnicas**. Se habla en lenguaje de **cliente**
+(problema → solución → resultado), no del "cómo está hecho". Una entrada que mencione el "cómo" técnico
+no cumple y se corrige.
 
 **Estructura única (igual para todos los proyectos):**
 ```
-nicolasbatistoni/portfolio/<nombre-repo-del-proyecto>/
-  README.md      # caso de estudio de venta: Problema → Solución → Resultado/impacto →
-                 #   Capturas → CTA (demo / contacto). SIN stack ni detalle técnico.
-  img/           # capturas REALES del producto corriendo (1 hero + galería), no mockups
-  meta.yml       # título, tagline (1 línea), categoría, links (demo/video), estado, fecha
+nicolasbatistoni/portfolio/<nombre-repo>/
+  README.md   # caso de venta: Problema → Solución → Resultado → Capturas → CTA. SIN stack.
+  img/        # capturas REALES del producto corriendo (1 hero + galería), no mockups
+  meta.yml    # título, tagline (1 línea), categoría, links (demo/video), estado, fecha
 ```
 
-**El sitio `otara-labs` refleja exactamente este repo:** la sección portfolio de la web muestra
-**exactamente** el contenido del repo `nicolasbatistoni/portfolio` (mismo texto y mismas capturas, por
-proyecto). El repo es la **fuente de verdad** del material de venta; la web no agrega copy ni detalle de
-implementación que no esté ahí. Si cambia uno, se actualiza el otro en el mismo cambio.
+**El sitio `otara-labs` refleja exactamente este repo:** su sección portfolio muestra **exactamente** el
+contenido de `nicolasbatistoni/portfolio` (mismo texto y capturas, por proyecto). El repo es la **fuente
+de verdad**; la web no agrega copy ni detalle técnico que no esté ahí. Si cambia uno, se actualiza el otro
+en el mismo cambio.
 
-**Actualización en CADA cambio/iteración (regla dura):** el material de portfolio se actualiza **en el
-mismo merge** que avanza lo que se ve o se promete. Una feature de cara al usuario **sin** su entrada/
-capturas de portfolio actualizadas está **incompleta** (no cumple la Definición de ENTREGADO, §3). El
-portfolio refleja **el mejor estado actual**, nunca un snapshot viejo o peor que el producto real.
+**Actualización en CADA cambio/iteración (regla dura):** se actualiza **en el mismo merge** que avanza lo
+que se ve o se promete. Una feature de cara al usuario **sin** su entrada/capturas actualizadas está
+**incompleta** (no cumple ENTREGADO, §3). Refleja **el mejor estado actual**, nunca un snapshot viejo.
 
-**Privacidad (ver §6):** en el material público **nunca se nombran personas** (clientes, dueños,
-contactos); sí se pueden nombrar **negocios/marcas**. Las imágenes son **capturas reales** del sistema
-corriendo, no mockups ni diagramas.
+**Privacidad:** aplica §6 — nunca personas (clientes/dueños/contactos), negocios/marcas sí; imágenes =
+**capturas reales** del sistema corriendo, no mockups ni diagramas.
 
 ## 4. Knowledge base + memoria — TODO in-repo, nunca fuera
 
@@ -515,4 +514,5 @@ evidencia que cambió), no in-silently:
 
 `STACKS.md` (elección de tecnología por tipo de software — hermano de éste), `GOAL.md` (el norte),
 `README.md` (visión + estático), `IDEAS.md`, `BACKLOG.md`, `CHANGELOG.md`, `docs/kb/README.md`,
-`docs/notes/MEMORY.md`, y el material de venta en `nicolasbatistoni/portfolio/<nombre-repo>/` (§3.quinquies).
+`docs/notes/MEMORY.md`, `project-template/docs/blog-editorial.md` (spec del blog del lab, §3.bis), y el
+material de venta en `nicolasbatistoni/portfolio/<nombre-repo>/` (§3.quinquies).
