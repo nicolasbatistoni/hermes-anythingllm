@@ -1,6 +1,6 @@
 # ⚠ ARCHIVO GENERADO por `cicd render-pipeline` — NO EDITAR A MANO.
 #
-# Fuente de verdad: `cicd.yml` (`.paths` = allowlist de disparo, `.images` = imagen por step) + la
+# Fuente de verdad: `cicd.yml` (`.paths`/`.packages` = disparo, `.images` = imagen por step) + la
 # plantilla del motor (nicolasbatistoni/cicd-toolkit). Para cambiar el pipeline, cambiá uno de esos dos y
 # corré `cicd render-pipeline`.
 #
