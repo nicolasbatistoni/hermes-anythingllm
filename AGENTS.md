@@ -97,11 +97,22 @@ corta más, §6).
 Nombres de rama describen **scope, no actor**: `feat-…`, `fix-…`, `chore-…`, `docs-…`. Evitar nombres
 con el actor o con fecha.
 
-El agente aprueba y mergea (squash + delete branch) una vez que pasan los gates de §3. El usuario NO
-gatea cada merge — la forma de la PR + verificación + diff limpio son el gate. El usuario gatea solo si
-lo pide o si el cambio es high-risk (arquitectónico, schema/API-breaking, refactor grande). **El merge lo
-hace siempre el agente, nunca lo deja para el usuario:** una PR abierta con CI en verde esperando solo
-que un humano apriete "merge" es trabajo sin terminar, no un entregable. **Esto incluye las PRs de
+**El merge lo dispara el CI, no una persona esperando** (`cicd automerge`, opt-in por repo): el
+"esperar → verificar → mergear" es **polling, no juicio**. El step va **ÚLTIMO** en el pipeline de PR, así
+que **llegar ahí ES la prueba** de que los gates de §3 pasaron (el CI corta al primer fallo) — no consulta
+"¿está verde?", que sería confiar en un estado que puede mentir o llegar tarde. Mergea **exigiendo el sha
+testeado**: si la rama se movió durante el CI, **falla** en vez de llevarse un commit que ningún gate miró.
+
+⚠ **Automatizar el merge NO baja el listón: lo mueve de lugar.** Lo que el CI no puede juzgar sigue siendo
+del agente y pasa **ANTES** de abrir la PR: la entrada del CHANGELOG, los bloques de diseño (§2.B) y la
+no-regresión de la flota. El automerge los **da por hechos**; no los reemplaza ni los verifica. Encenderlo
+en un repo cuyo agente no los hace es **sacar** gates, no automatizarlos.
+
+**Donde el automerge no esté encendido, mergea el agente** (squash + delete branch) una vez que pasan los
+gates de §3, **nunca lo deja para el usuario**: una PR verde esperando que un humano apriete "merge" es
+trabajo sin terminar, no un entregable. El usuario NO gatea cada merge — la forma de la PR + verificación
++ diff limpio son el gate; gatea solo si lo pide o si el cambio es high-risk (arquitectónico,
+schema/API-breaking, refactor grande). **Esto incluye las PRs de
 release: versionar y publicar es 100% automático** (el pipeline corta tag + GitHub Release por
 Conventional Commits, sin gate humano ni tag a mano; detalle §1.bis/§6). Aplica a **todos los repos**
 (`dev/` y portfolio): cada uno corre el mismo motor de CI/CD portable.
@@ -350,27 +361,12 @@ actualización de los docs vivos de arriba. La doc por default vive en los archi
 
 ## 3.ter Disciplina de flags/parámetros de ejecución — SOLID/DRY/KISS/YAGNI
 
-Antes de agregar CUALQUIER parámetro/flag/env-var/script de ejecución, aplicá la escalera (parate en el
-primero que sirva): (1) **Reusá** un flag/modo existente; (2) **Parametrizá una familia existente** en
-vez de un flag nuevo (DRY): un caso nuevo de un mecanismo existente, no un mecanismo nuevo; (3)
-**Diagnóstico puntual** (pokear estado runtime UNA vez): NO committees env-var + script, usá un branch
-temporal que **borrás** (YAGNI); (4) **Flag/env-var PERMANENTE** solo si es necesidad **recurrente y
-parametrizada**, documentado en la tabla **en el mismo PR** (DRY: una env-var se lee en **un** accessor);
-(5) **Borrá** los one-off cuando cumplieron. **No dupliques mecanismos:** un modo por flag CLI y además
-por env-var son dos sistemas para lo mismo — converger, no sumar. **Tipos de flag** (cada uno con dueño
-+ fecha/condición de borrado): `release` (ocultar lo incompleto), `experiment` (A/B), `ops`
-(kill-switch) y `permission` (por usuario/rol/tenant). **Toggle = switch, no comentar código:** para prender/apagar algo que **ya funciona**, usá
-un switch (flag/env/config) con **default seguro** (ausente ⇒ comportamiento más restrictivo/estable) y nombre que diga qué activa
-(`ALLOW_PUBLIC_REGISTRATION`, no `FLAG_7`) — **nunca** comentar/borrar/restaurar código. (Feature nueva → desarrollala; bug →
-arreglalo; código muerto definitivo → borralo: ninguno de esos es un switch.)
-
-**Lo mismo aplica a las dependencias externas.** Antes de sumar una, subí la misma escalera: ¿lo resuelve
-algo que ya está en el árbol o en la stdlib del stack? ¿vale el costo permanente (peso del artefacto,
-mantenimiento, superficie de seguridad/ataque, una transitiva más que auditar)? **No se agrega una
-dependencia sin justificación registrada en el PR**; ante la duda, parametrizar/reusar lo existente o
-escribir lo mínimo propio antes que sumar una dependencia (KISS/YAGNI). Cada dependencia nueva es un
-compromiso, no un atajo. Para deps que viajan en el artefacto distribuido (código de cliente/bundle), medí el **delta de tamaño
-antes/después** y justificá si crece de forma no trivial.
+Antes de agregar CUALQUIER parámetro/flag/env-var/script, subí la **escalera** y parate en el primero que
+sirva: **reusá** lo existente → **parametrizá** una familia existente (DRY) → **branch temporal** que
+borrás (diagnóstico puntual, YAGNI) → **flag permanente** solo si es necesidad recurrente, documentado en
+el mismo PR. **Toggle = switch con default seguro, NUNCA comentar/borrar código.** **Lo mismo aplica a las
+dependencias**: no se agrega una sin justificación registrada en el PR. **Procedimiento completo, tipos de
+flag y criterios: [`docs/flags.md`](docs/flags.md).**
 
 ## 3.quater Tamaño de este archivo — límite soft 36 KB / hard 40 KB (sin perder info jamás)
 
@@ -382,34 +378,12 @@ se perdió contenido — restaurá lo que falte. Toda PR que toque este archivo 
 
 ## 3.quinquies Portfolio de venta — material comercial en `nicolasbatistoni/portfolio`
 
-Todo proyecto **publicable/vendible** mantiene su material de venta en el repo central
-**`nicolasbatistoni/portfolio`**, bajo una carpeta con el **nombre del repo del proyecto**. Es lo que se
-le muestra a un cliente potencial (no doc técnica): qué problema resuelve, para quién y con qué resultado.
-
-**Sin detalle de implementación (regla dura):** **nunca nombra tecnologías, frameworks, librerías,
-lenguajes, arquitectura, infraestructura ni decisiones técnicas**. Se habla en lenguaje de **cliente**
-(problema → solución → resultado), no del "cómo está hecho". Una entrada que mencione el "cómo" técnico
-no cumple y se corrige.
-
-**Estructura única (igual para todos los proyectos):**
-```
-nicolasbatistoni/portfolio/<nombre-repo>/
-  README.md   # caso de venta: Problema → Solución → Resultado → Capturas → CTA. SIN stack.
-  img/        # capturas REALES del producto corriendo (1 hero + galería), no mockups
-  meta.yml    # título, tagline (1 línea), categoría, links (demo/video), estado, fecha
-```
-
-**El sitio `otara-labs` refleja exactamente este repo:** su sección portfolio muestra **exactamente** el
-contenido de `nicolasbatistoni/portfolio` (mismo texto y capturas, por proyecto). El repo es la **fuente
-de verdad**; la web no agrega copy ni detalle técnico que no esté ahí. Si cambia uno, se actualiza el otro
-en el mismo cambio.
-
-**Actualización en CADA cambio/iteración (regla dura):** se actualiza **en el mismo merge** que avanza lo
-que se ve o se promete. Una feature de cara al usuario **sin** su entrada/capturas actualizadas está
-**incompleta** (no cumple ENTREGADO, §3). Refleja **el mejor estado actual**, nunca un snapshot viejo.
-
-**Privacidad:** aplica §6 — nunca personas (clientes/dueños/contactos), negocios/marcas sí; imágenes =
-**capturas reales** del sistema corriendo, no mockups ni diagramas.
+Todo proyecto **publicable/vendible** mantiene su material de venta en `nicolasbatistoni/portfolio/<nombre-repo>/`,
+en lenguaje de **cliente** (problema → solución → resultado): **nunca** tecnologías, arquitectura ni
+decisiones técnicas. Se actualiza **en el mismo merge** que avanza lo que se ve o se promete: una feature de
+cara al usuario sin su entrada/capturas **no cumple ENTREGADO** (§3). Aplica §6 (privacidad: nunca personas;
+capturas reales, no mockups). **Estructura, `meta.yml` y relación con el sitio:
+[`docs/portfolio.md`](docs/portfolio.md).**
 
 ## 4. Knowledge base + memoria — TODO in-repo, nunca fuera
 
@@ -514,5 +488,11 @@ evidencia que cambió), no in-silently:
 
 `STACKS.md` (elección de tecnología por tipo de software — hermano de éste), `GOAL.md` (el norte),
 `README.md` (visión + estático), `IDEAS.md`, `BACKLOG.md`, `CHANGELOG.md`, `docs/kb/README.md`,
-`docs/notes/MEMORY.md`, `project-template/docs/blog-editorial.md` (spec del blog del lab, §3.bis), y el
-material de venta en `nicolasbatistoni/portfolio/<nombre-repo>/` (§3.quinquies).
+`docs/notes/MEMORY.md`, y el material de venta en `nicolasbatistoni/portfolio/<nombre-repo>/` (§3.quinquies).
+
+**Detalle movido a `docs/` por §3.quater** (este archivo se inyecta entero en cada sesión: su tamaño es un
+recurso compartido, y lo que se consulta de vez en cuando no tiene que ocupar contexto siempre). La REGLA
+queda acá; el procedimiento, allá — nada se perdió:
+`project-template/docs/flags.md` (§3.ter: la escalera completa, tipos de flag, dependencias) ·
+`project-template/docs/portfolio.md` (§3.quinquies: estructura, `meta.yml`, privacidad) ·
+`project-template/docs/blog-editorial.md` (§3.bis: spec del blog del lab).
